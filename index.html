@@ -1,26 +1,58 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>My First WebAR</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-ar.js/aframe-ar.js"></script>
-    <script src="https://unpkg.com/aframe-gps-entity-place/dist/aframe-gps-entity-place.min.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Location-based WebAR</title>
+
+    <!-- A-Frame & AR.js (v3系) -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <!-- iOS対策含む location 用スクリプト & A-Frame用AR.jsビルド -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/three.js/build/ar-threex-location-only.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
+
+    <!-- テキスト等をカメラ方向に向けるため（必要なら） -->
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   </head>
+
   <body style="margin:0; overflow:hidden;">
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
+      renderer="alpha: true; antialias: true"
+      <!-- 背景にカメラ映像をテクスチャで扱う＝遠景でも白くなりにくい -->
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false"
+      device-orientation-permission-ui="enabled: true"
     >
-      <!-- 現在地にリンゴを表示 -->
-      <a-entity
-        gps-entity-place="latitude: 0; longitude: 0;"
-        gltf-model="apple.glb"
-        scale="5 5 5"
-      ></a-entity>
+      <!-- カメラ（新API）。最小移動距離は好みで調整 -->
+      <a-camera gps-new-camera="gpsMinDistance: 5"></a-camera>
 
-      <a-camera gps-camera rotation-reader></a-camera>
+      <!-- ここでは “今いる場所の少し北（約30m）” にリンゴを出す。
+           端末の現在地を受け取ったら1回だけ生成します。 -->
+      <script>
+        window.onload = () => {
+          let added = false;
+          const cam = document.querySelector("[gps-new-camera]");
+          cam.addEventListener("gps-camera-update-position", (e) => {
+            if (added) return;
+            const { latitude, longitude } = e.detail.position;
+
+            const apple = document.createElement("a-entity");
+            apple.setAttribute("gltf-model", "apple.glb");
+            apple.setAttribute("scale", "5 5 5");
+            // 30m ほど北側に出す（確認しやすい）
+            apple.setAttribute("gps-new-entity-place", {
+              latitude: latitude + 0.00027,  // ≒ 30m
+              longitude: longitude
+            });
+            // いつもカメラ方向へ向けたい場合（任意）
+            apple.setAttribute("look-at", "[gps-new-camera]");
+
+            document.querySelector("a-scene").appendChild(apple);
+            added = true;
+          });
+        };
+      </script>
     </a-scene>
   </body>
 </html>
