@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
@@ -10,9 +11,9 @@
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
     >
-      <!-- apple.glb を現在地に表示 -->
+      <!-- 現在地にリンゴを表示 -->
       <a-entity
         gps-entity-place="latitude: 0; longitude: 0;"
         gltf-model="apple.glb"
