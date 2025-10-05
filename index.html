@@ -1,37 +1,26 @@
-<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Location-based AR Text</title>
-
-    <!-- A-Frame & AR.js (locationベース) -->
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/three.js/build/ar-threex-location-only.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Location-based AR.js demo</title>
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
 
-  <body style="margin:0; overflow:hidden;">
+  <body style="margin: 0; overflow: hidden;">
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      renderer="alpha: true; antialias: true"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
-      device-orientation-permission-ui="enabled: true"
+      arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-      <!-- 端末のGPSを使うカメラ。最小移動距離0で更新を確実に -->
-      <a-camera gps-new-camera="gpsMinDistance: 0"></a-camera>
-
-      <!-- 北緯35.83837 / 東経139.55592 / 高さ2m にテキストを固定表示 -->
       <a-text
-        value="Hello, Takatsuki!"
-        color="#00E0FF"
-        align="center"
-        width="8"
-        look-at="[gps-new-camera]"
-        gps-new-entity-place="latitude: 35.83837; longitude: 139.55592; altitude: 2;"
+        value="This content will always face you."
+        look-at="[gps-camera]"
+        scale="100 100 100"
+        gps-entity-place="latitude: <35.83841>; longitude: <139.55606>;"
       ></a-text>
+      <a-camera gps-camera rotation-reader> </a-camera>
     </a-scene>
   </body>
 </html>
