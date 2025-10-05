@@ -8,9 +8,23 @@
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <style>
+      #status {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        padding: 6px 10px;
+        font-size: 14px;
+        z-index: 9999;
+      }
+    </style>
   </head>
 
   <body style="margin:0; overflow:hidden;">
+    <div id="status">📍 画面をタップして位置情報を有効化してください</div>
+
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
@@ -33,22 +47,19 @@
     </a-scene>
 
     <script>
-      // 初回ロード時の案内
-      alert("📍 画面をタップして位置情報を有効化してください");
+      const statusEl = document.getElementById("status");
 
-      // タップ時に geolocation を強制リクエスト
       document.body.addEventListener("click", () => {
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
-              alert(
-                "✅ 位置情報取得成功！\n" +
-                "lat: " + pos.coords.latitude + "\n" +
-                "lon: " + pos.coords.longitude
-              );
+              statusEl.innerText = 
+                "✅ 位置情報取得成功: " +
+                pos.coords.latitude.toFixed(5) + ", " +
+                pos.coords.longitude.toFixed(5);
             },
             (err) => {
-              alert("❌ 位置情報エラー: " + err.message);
+              statusEl.innerText = "❌ 位置情報エラー: " + err.message;
             },
             {
               enableHighAccuracy: true,
