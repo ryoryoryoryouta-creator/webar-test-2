@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Location-based WebAR</title>
 
-    <!-- A-Frame & AR.js (v3系) -->
+    <!-- A-Frame & AR.js -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/three.js/build/ar-threex-location-only.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
-
-    <!-- テキスト等をカメラ方向に向けるため -->
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   </head>
 
@@ -22,11 +20,8 @@
       arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
       device-orientation-permission-ui="enabled: true"
     >
-      <!-- カメラ（新API）。最小移動距離は好みで調整 -->
       <a-camera gps-new-camera="gpsMinDistance: 5"></a-camera>
 
-      <!-- ここでは “今いる場所の少し北（約30m）” にリンゴを出す。
-           端末の現在地を受け取ったら1回だけ生成します。 -->
       <script>
         window.onload = () => {
           let added = false;
@@ -38,14 +33,14 @@
             const apple = document.createElement("a-entity");
             apple.setAttribute("gltf-model", "apple.glb");
             apple.setAttribute("scale", "50 50 50");
-            // 30m ほど北側に出す（確認しやすい）
+
+            // オブジェクト形式で渡す（こちらの方が確実に動く）
             apple.setAttribute("gps-new-entity-place", {
-              latitude: latitude + 0.0001,  // ≒ 30m
+              latitude: latitude + 0.0001, // ≒30m北
               longitude: longitude
             });
-            // いつもカメラ方向へ向けたい場合（任意）
-            apple.setAttribute("look-at", "[gps-new-camera]");
 
+            apple.setAttribute("look-at", "[gps-new-camera]");
             document.querySelector("a-scene").appendChild(apple);
             added = true;
           });
