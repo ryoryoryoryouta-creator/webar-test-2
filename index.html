@@ -39,7 +39,22 @@
     </a-scene>
 
     <script>
-      document.getElementById("startBtn").addEventListener("click", () => {
+      document.getElementById("startBtn").addEventListener("click", async () => {
+        // iOS Safari 専用：デバイス方向アクセスの許可をリクエスト
+        if (typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function") {
+          try {
+            const response = await DeviceOrientationEvent.requestPermission();
+            if (response !== "granted") {
+              alert("モーションセンサーアクセスが拒否されました。設定を確認してください。");
+              return;
+            }
+          } catch (err) {
+            console.error("DeviceOrientation 許可エラー:", err);
+          }
+        }
+
+        // シーンを表示
         document.getElementById("startBtn").style.display = "none";
         document.getElementById("scene").style.display = "block";
       });
