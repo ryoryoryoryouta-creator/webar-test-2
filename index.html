@@ -2,9 +2,11 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>GPS Camera Test</title>
+    <title>GPS Camera Force Test</title>
 
+    <!-- A-Frame & AR.js -->
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
@@ -15,10 +17,32 @@
     </a-scene>
 
     <script>
-      const cam = document.querySelector("[gps-camera]");
-      cam.addEventListener("gps-camera-update-position", (e) => {
-        console.log("📍 現在地を取得:", e.detail.position);
-        alert("現在地を取得しました！\n" + JSON.stringify(e.detail.position));
+      // 初回ロード時の案内
+      alert("📍 画面を1回タップすると、位置情報をリクエストします");
+
+      // タップ時に geolocation を強制リクエスト
+      document.body.addEventListener("click", () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              alert(
+                "✅ 位置情報取得成功！\n" +
+                "lat: " + pos.coords.latitude + "\n" +
+                "lon: " + pos.coords.longitude
+              );
+            },
+            (err) => {
+              alert("❌ 位置情報エラー: " + err.message);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 5000,
+              maximumAge: 0
+            }
+          );
+        } else {
+          alert("❌ このブラウザはGeolocationをサポートしていません");
+        }
       });
     </script>
   </body>
