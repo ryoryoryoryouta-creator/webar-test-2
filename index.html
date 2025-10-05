@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Pseudo Location AR (NFT build)</title>
+    <title>Pseudo Location AR - Camera Move</title>
 
     <!-- A-Frame & NFT build (iOS Safariで安定) -->
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
@@ -27,21 +27,19 @@
     <div id="status">📍 タップして位置情報を有効化してください</div>
 
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true;">
-      <!-- カメラ -->
-      <a-camera position="0 1.6 0"></a-camera>
+      <!-- ターゲットは世界座標の原点に固定 -->
+      <a-box id="marker" color="#4CC3D9" scale="20 20 20" position="0 0 0"></a-box>
+      <a-text value="ここです！" color="#FF0000" scale="40 40 40" position="0 30 0" align="center"></a-text>
 
-      <!-- ターゲット表示用の箱とテキスト -->
-      <a-box id="marker" color="#4CC3D9" scale="10 10 10" position="0 0 -5"></a-box>
-      <a-text id="label" value="ここです！" color="#FF0000" scale="20 20 20"
-              position="0 15 -5" align="center"></a-text>
+      <!-- カメラ（位置はJSで動的に更新する） -->
+      <a-entity id="camera" camera look-controls position="0 1.6 0"></a-entity>
     </a-scene>
 
     <script>
       const statusEl = document.getElementById("status");
-      const marker = document.getElementById("marker");
-      const label = document.getElementById("label");
+      const cam = document.getElementById("camera");
 
-      // 🎯 ターゲット地点（例: 任意の場所）
+      // 🎯 ターゲット地点（例: 任意のスポット）
       const targetLat = 35.83841;
       const targetLon = 139.55606;
 
@@ -64,15 +62,15 @@
               const myLat = pos.coords.latitude;
               const myLon = pos.coords.longitude;
 
+              // 現在地との差分を計算
               const delta = latLonToMeters(myLat, myLon, targetLat, targetLon);
 
-              // 📍 AR座標に反映（zを北方向に）
-              marker.setAttribute("position", `${delta.x} 0 ${-delta.y}`);
-              label.setAttribute("position", `${delta.x} 15 ${-delta.y}`);
+              // 🚶 カメラの位置を「自分がターゲットからどれだけ離れているか」で更新
+              cam.setAttribute("position", `${-delta.x} 1.6 ${delta.y}`);
 
               statusEl.innerText =
                 `✅ 現在地: ${myLat.toFixed(5)}, ${myLon.toFixed(5)}\n` +
-                `🎯 東西差: ${delta.x.toFixed(1)}m, 南北差: ${delta.y.toFixed(1)}m`;
+                `🎯 距離: 東西${delta.x.toFixed(1)}m, 南北${delta.y.toFixed(1)}m`;
             },
             (err) => {
               statusEl.innerText = "❌ 位置情報エラー: " + err.message;
