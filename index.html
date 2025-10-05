@@ -18,17 +18,46 @@
     >
       <!-- 指定座標に巨大テキスト -->
       <a-text
+        id="targetText"
         value="ここです！"
         color="#FF0000"
         align="center"
         scale="500 500 500"
         look-at="[gps-camera]"
-        gps-entity-place="latitude: 35.83832313832857; longitude: 139.55588496737695;"
+        gps-entity-place="latitude: 35.83841; longitude: 139.55606;"
         position="0 3 0"
       ></a-text>
 
       <!-- カメラ -->
       <a-camera gps-camera rotation-reader></a-camera>
     </a-scene>
+
+    <script>
+      // 初回ロード時の案内
+      alert("📍 画面をタップして位置情報を有効化してください");
+
+      // タップ時に geolocation を強制リクエスト
+      document.body.addEventListener("click", () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              alert(
+                "✅ 位置情報取得成功！\n" +
+                "lat: " + pos.coords.latitude + "\n" +
+                "lon: " + pos.coords.longitude
+              );
+            },
+            (err) => {
+              alert("❌ 位置情報エラー: " + err.message);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 5000,
+              maximumAge: 0
+            }
+          );
+        }
+      });
+    </script>
   </body>
 </html>
