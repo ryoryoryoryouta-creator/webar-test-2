@@ -39,10 +39,10 @@
 
             const apple = document.createElement("a-entity");
             apple.setAttribute("gltf-model", "apple.glb");
-            apple.setAttribute("scale", "5 5 5");
+            apple.setAttribute("scale", "50 50 50");
             // 30m ほど北側に出す（確認しやすい）
             apple.setAttribute("gps-new-entity-place", {
-              latitude: latitude + 0.00027,  // ≒ 30m
+              latitude: latitude + 0.0001,  // ≒ 30m
               longitude: longitude
             });
             // いつもカメラ方向へ向けたい場合（任意）
