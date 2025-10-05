@@ -1,26 +1,80 @@
- <html>
+<!DOCTYPE html>
+<html>
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Location-based AR.js demo</title>
-    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Pseudo Location AR</title>
+
+    <!-- A-Frame本体 -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
 
-  <body style="margin: 0; overflow: hidden;">
+  <body style="margin:0; overflow:hidden;">
+    <div id="status" 
+      style="position:fixed; top:10px; left:10px; z-index:9999; 
+             background:rgba(0,0,0,0.6); color:white; padding:6px 10px; font-size:14px;">
+      📍 タップして位置情報を有効化
+    </div>
+
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      renderer="alpha: true; antialias: true"
     >
-      <a-text
-        value="This content will always face you."
-        look-at="[gps-camera]"
-        scale="50 50 50"
-        gps-entity-place="latitude: <35.83832313832857>; longitude: <139.55588496737695>;"
-      ></a-text>
-      <a-camera gps-camera rotation-reader> </a-camera>
+      <!-- カメラ -->
+      <a-entity id="camera" camera look-controls position="0 1.6 0"></a-entity>
+
+      <!-- ターゲットオブジェクト（初期位置は原点に） -->
+      <a-box id="marker" color="#4CC3D9" scale="10 10 10" position="0 0 -5"></a-box>
+      <a-text id="label" value="ここです！" color="#FF0000" scale="20 20 20" 
+              position="0 15 -5" align="center"></a-text>
     </a-scene>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const marker = document.getElementById("marker");
+      const label = document.getElementById("label");
+
+      // ターゲット地点（例: あなたが指定した場所）
+      const targetLat = 35.83841;
+      const targetLon = 139.55606;
+
+      // 緯度経度差をメートルに換算
+      function latLonToMeters(lat1, lon1, lat2, lon2) {
+        const R = 6378137; // 地球半径[m]
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const x = dLon * R * Math.cos((lat1 + lat2) * Math.PI / 360);
+        const y = dLat * R;
+        return {x, y}; // x=東西(m), y=南北(m)
+      }
+
+      document.body.addEventListener("click", () => {
+        if (navigator.geolocation) {
+          statusEl.innerText = "📡 位置情報を取得中...";
+          navigator.geolocation.watchPosition(
+            (pos) => {
+              const myLat = pos.coords.latitude;
+              const myLon = pos.coords.longitude;
+
+              const delta = latLonToMeters(myLat, myLon, targetLat, targetLon);
+
+              // A-Frameの座標系に適用（zを北方向に）
+              marker.setAttribute("position", `${delta.x} 0 ${-delta.y}`);
+              label.setAttribute("position", `${delta.x} 15 ${-delta.y}`);
+
+              statusEl.innerText = 
+                `✅ 現在地: ${myLat.toFixed(5)}, ${myLon.toFixed(5)}\n` +
+                `🎯 ターゲットまで: 東西${delta.x.toFixed(1)}m, 南北${delta.y.toFixed(1)}m`;
+            },
+            (err) => {
+              statusEl.innerText = "❌ 位置情報エラー: " + err.message;
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          );
+        }
+      });
+    </script>
   </body>
 </html>
