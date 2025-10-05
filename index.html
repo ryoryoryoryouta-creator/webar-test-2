@@ -3,9 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Pseudo Location AR - Camera Move</title>
+    <title>Pseudo Location AR - Fixed Target</title>
 
-    <!-- A-Frame & NFT build (iOS Safariで安定) -->
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
@@ -27,11 +26,11 @@
     <div id="status">📍 タップして位置情報を有効化してください</div>
 
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true;">
-      <!-- ターゲットは世界座標の原点に固定 -->
+      <!-- ターゲットは原点に固定 -->
       <a-box id="marker" color="#4CC3D9" scale="20 20 20" position="0 0 0"></a-box>
       <a-text value="ここです！" color="#FF0000" scale="40 40 40" position="0 30 0" align="center"></a-text>
 
-      <!-- カメラ（位置はJSで動的に更新する） -->
+      <!-- カメラ -->
       <a-entity id="camera" camera look-controls position="0 1.6 0"></a-entity>
     </a-scene>
 
@@ -39,18 +38,20 @@
       const statusEl = document.getElementById("status");
       const cam = document.getElementById("camera");
 
-      // 🎯 ターゲット地点（例: 任意のスポット）
+      // ターゲット座標
       const targetLat = 35.83841;
       const targetLon = 139.55606;
 
-      // 緯度経度差をメートル換算
+      let baseLat = null;
+      let baseLon = null;
+
       function latLonToMeters(lat1, lon1, lat2, lon2) {
-        const R = 6378137; // 地球半径[m]
+        const R = 6378137;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
         const x = dLon * R * Math.cos((lat1 + lat2) * Math.PI / 360);
         const y = dLat * R;
-        return {x, y}; // x=東西, y=南北
+        return {x, y};
       }
 
       document.body.addEventListener("click", () => {
@@ -62,15 +63,30 @@
               const myLat = pos.coords.latitude;
               const myLon = pos.coords.longitude;
 
-              // 現在地との差分を計算
-              const delta = latLonToMeters(myLat, myLon, targetLat, targetLon);
+              // 初回に基準点を記録
+              if (baseLat === null || baseLon === null) {
+                baseLat = myLat;
+                baseLon = myLon;
 
-              // 🚶 カメラの位置を「自分がターゲットからどれだけ離れているか」で更新
-              cam.setAttribute("position", `${-delta.x} 1.6 ${delta.y}`);
+                // ターゲット位置を基準点に対して固定
+                const deltaTarget = latLonToMeters(baseLat, baseLon, targetLat, targetLon);
+                const marker = document.getElementById("marker");
+                const label = document.getElementById("label");
+                marker.setAttribute("position", `${deltaTarget.x} 0 ${-deltaTarget.y}`);
+                label.setAttribute("position", `${deltaTarget.x} 30 ${-deltaTarget.y}`);
+              }
+
+              // カメラの位置を「基準点からの移動分」で更新
+              const deltaMove = latLonToMeters(baseLat, baseLon, myLat, myLon);
+              cam.setAttribute("position", `${deltaMove.x} 1.6 ${-deltaMove.y}`);
+
+              // ステータス表示
+              const distToTarget = latLonToMeters(myLat, myLon, targetLat, targetLon);
+              const distance = Math.sqrt(distToTarget.x**2 + distToTarget.y**2);
 
               statusEl.innerText =
                 `✅ 現在地: ${myLat.toFixed(5)}, ${myLon.toFixed(5)}\n` +
-                `🎯 距離: 東西${delta.x.toFixed(1)}m, 南北${delta.y.toFixed(1)}m`;
+                `🎯 ターゲットまで ${distance.toFixed(1)} m`;
             },
             (err) => {
               statusEl.innerText = "❌ 位置情報エラー: " + err.message;
