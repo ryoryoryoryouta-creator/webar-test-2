@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Pseudo Location AR - Fixed Target</title>
+    <title>AR Navigation Demo</title>
 
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
@@ -18,6 +18,7 @@
         padding: 6px 10px;
         font-size: 14px;
         z-index: 9999;
+        white-space: pre-line;
       }
     </style>
   </head>
@@ -26,63 +27,63 @@
     <div id="status">📍 タップして位置情報を有効化してください</div>
 
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true;">
-      <!-- 最初は仮置き -->
-      <a-box id="marker" color="#4CC3D9" scale="20 20 20" position="0 0 -50"></a-box>
-      <a-text id="label" value="ここです！" color="#FF0000" scale="40 40 40" position="0 30 -50"></a-text>
-
+      <!-- 常に2m先に箱を表示 -->
+      <a-box id="arrow" color="#4CC3D9" scale="0.5 0.5 2" position="0 0 -2"></a-box>
       <a-camera></a-camera>
     </a-scene>
 
     <script>
       const statusEl = document.getElementById("status");
-      const marker = document.getElementById("marker");
-      const label = document.getElementById("label");
+      const arrow = document.getElementById("arrow");
 
-      // 🎯 ターゲット地点
+      // 🎯 目的地（例: 適当な座標）
       const targetLat = 35.83841;
       const targetLon = 139.55606;
 
-      let baseLat = null;
-      let baseLon = null;
-      let placed = false;
+      // 度→ラジアン
+      const toRad = (deg) => deg * Math.PI / 180;
 
-      function latLonToMeters(lat1, lon1, lat2, lon2) {
-        const R = 6378137;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const x = dLon * R * Math.cos((lat1 + lat2) * Math.PI / 360);
-        const y = dLat * R;
-        return {x, y};
+      // 距離と方位角を計算
+      function computeDistanceAndBearing(lat1, lon1, lat2, lon2) {
+        const R = 6378137; // 地球半径[m]
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat/2)**2 +
+                  Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c;
+
+        // 方位角（北=0°から時計回り）
+        const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+        const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) -
+                  Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(dLon);
+        const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+        return {distance, bearing};
+      }
+
+      // 方位をコンパス風に表現
+      function bearingToText(bearing) {
+        const dirs = ["北","北東","東","南東","南","南西","西","北西"];
+        return dirs[Math.round(bearing / 45) % 8];
       }
 
       document.body.addEventListener("click", () => {
         if (navigator.geolocation) {
-          statusEl.innerText = "📡 位置情報を取得中...";
-
           navigator.geolocation.watchPosition(
             (pos) => {
               const myLat = pos.coords.latitude;
               const myLon = pos.coords.longitude;
 
-              if (!placed) {
-                // 初回に基準点からターゲット位置を計算して「一度だけ」配置
-                baseLat = myLat;
-                baseLon = myLon;
+              const {distance, bearing} = computeDistanceAndBearing(myLat, myLon, targetLat, targetLon);
 
-                const delta = latLonToMeters(baseLat, baseLon, targetLat, targetLon);
-                marker.setAttribute("position", `${delta.x} 0 ${-delta.y}`);
-                label.setAttribute("position", `${delta.x} 30 ${-delta.y}`);
+              // 箱を目的地方向に回転（Y軸を回す）
+              arrow.setAttribute("rotation", `0 ${bearing} 0`);
 
-                placed = true;
-              }
-
-              // 現在位置からのターゲット距離を毎回表示（オブジェクト座標は更新しない）
-              const dist = latLonToMeters(myLat, myLon, targetLat, targetLon);
-              const distance = Math.sqrt(dist.x ** 2 + dist.y ** 2);
-
+              // UI更新
               statusEl.innerText =
-                `✅ 現在地: ${myLat.toFixed(5)}, ${myLon.toFixed(5)}\n` +
-                `🎯 ターゲットまで ${distance.toFixed(1)} m`;
+                `現在地: ${myLat.toFixed(5)}, ${myLon.toFixed(5)}\n` +
+                `目的地まで: 約${distance.toFixed(1)}m (${bearingToText(bearing)})`;
             },
             (err) => {
               statusEl.innerText = "❌ 位置情報エラー: " + err.message;
