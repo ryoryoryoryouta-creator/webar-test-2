@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Location-based WebAR</title>
 
-    <!-- A-Frame & AR.js (v3系安定版) -->
+    <!-- A-Frame & AR.js -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
-
-    <!-- テキストやオブジェクトをカメラ方向へ向けるため（必要なら） -->
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   </head>
 
@@ -24,12 +22,11 @@
       <!-- 特定の緯度経度にリンゴを固定設置 -->
       <a-entity
         gltf-model="apple.glb"
-        scale="150 150 150"
-        gps-new-entity-place="latitude: 35.838353; longitude: 139.555923; altitude: 10;"
+        scale="10 10 10"
+        gps-new-entity-place="latitude: 35.838353; longitude: 139.555923"
         look-at="[gps-new-camera]"
       ></a-entity>
 
-      <!-- GPSカメラ -->
       <a-camera gps-new-camera></a-camera>
     </a-scene>
   </body>
