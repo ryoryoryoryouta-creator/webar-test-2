@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Location-based WebAR</title>
 
-    <!-- A-Frame & AR.js (v3系安定版) -->
+    <!-- A-Frame & AR.js (v3系) -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <!-- iOS対策含む location 用スクリプト & A-Frame用AR.jsビルド -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/three.js/build/ar-threex-location-only.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
 
-    <!-- テキストやオブジェクトをカメラ方向へ向けるため（必要なら） -->
+    <!-- テキスト等をカメラ方向に向けるため（必要なら） -->
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   </head>
 
@@ -18,19 +20,39 @@
       vr-mode-ui="enabled: false"
       embedded
       renderer="alpha: true; antialias: true"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      <!-- 背景にカメラ映像をテクスチャで扱う＝遠景でも白くなりにくい -->
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false"
       device-orientation-permission-ui="enabled: true"
     >
-      <!-- 特定の緯度経度にリンゴを固定設置 -->
-      <a-entity
-        gltf-model="apple.glb"
-        scale="150 150 150"
-        gps-new-entity-place="latitude: 35.838353; longitude: 139.555923;"
-        look-at="[gps-new-camera]"
-      ></a-entity>
+      <!-- カメラ（新API）。最小移動距離は好みで調整 -->
+      <a-camera gps-new-camera="gpsMinDistance: 5"></a-camera>
 
-      <!-- GPSカメラ -->
-      <a-camera gps-new-camera></a-camera>
+      <!-- ここでは “今いる場所の少し北（約30m）” にリンゴを出す。
+           端末の現在地を受け取ったら1回だけ生成します。 -->
+      <script>
+        window.onload = () => {
+          let added = false;
+          const cam = document.querySelector("[gps-new-camera]");
+          cam.addEventListener("gps-camera-update-position", (e) => {
+            if (added) return;
+            const { latitude, longitude } = e.detail.position;
+
+            const apple = document.createElement("a-entity");
+            apple.setAttribute("gltf-model", "apple.glb");
+            apple.setAttribute("scale", "5 5 5");
+            // 30m ほど北側に出す（確認しやすい）
+            apple.setAttribute("gps-new-entity-place", {
+              latitude: latitude + 0.00027,  // ≒ 30m
+              longitude: longitude
+            });
+            // いつもカメラ方向へ向けたい場合（任意）
+            apple.setAttribute("look-at", "[gps-new-camera]");
+
+            document.querySelector("a-scene").appendChild(apple);
+            added = true;
+          });
+        };
+      </script>
     </a-scene>
   </body>
 </html>
