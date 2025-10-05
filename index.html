@@ -3,20 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>WebAR Camera Test</title>
+    <title>Location-based WebAR</title>
 
+    <!-- A-Frame & AR.js (v3系) -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/three.js/build/ar-threex-location-only.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   </head>
 
   <body style="margin:0; overflow:hidden;">
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      renderer="alpha: true; antialias: true"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
       device-orientation-permission-ui="enabled: true"
     >
-      <a-camera gps-new-camera></a-camera>
+      <a-camera gps-new-camera="gpsMinDistance: 5"></a-camera>
+
+      <script>
+        window.onload = () => {
+          let added = false;
+          const cam = document.querySelector("[gps-new-camera]");
+          cam.addEventListener("gps-camera-update-position", (e) => {
+            if (added) return;
+            const { latitude, longitude } = e.detail.position;
+
+            const apple = document.createElement("a-entity");
+            apple.setAttribute("gltf-model", "apple.glb");
+            apple.setAttribute("scale", "50 50 50");
+
+            // 現在地の少し北（約30m）に出す
+            apple.setAttribute(
+              "gps-new-entity-place",
+              `latitude: ${latitude + 0.0001}; longitude: ${longitude}`
+            );
+
+            apple.setAttribute("look-at", "[gps-new-camera]");
+            document.querySelector("a-scene").appendChild(apple);
+            added = true;
+          });
+        };
+      </script>
     </a-scene>
   </body>
 </html>
