@@ -1,82 +1,26 @@
-<!DOCTYPE html>
-<html>
+ <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>GPS New Component Test</title>
-
-    <!-- A-Frame本体 -->
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Location-based AR.js demo</title>
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-    <!-- AR.js (new GPS対応ビルド) -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
-
-    <style>
-      #status {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        background: rgba(0,0,0,0.6);
-        color: white;
-        padding: 6px 10px;
-        font-size: 14px;
-        z-index: 9999;
-      }
-    </style>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
   </head>
 
-  <body style="margin:0; overflow:hidden;">
-    <div id="status">📍 画面をタップして位置情報を有効化してください</div>
-
+  <body style="margin: 0; overflow: hidden;">
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      renderer="alpha: true; antialias: true"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: true;"
-      device-orientation-permission-ui="enabled: true"
+      arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-      <!-- カメラ (new系) -->
-      <a-camera gps-new-camera="gpsMinDistance: 0"></a-camera>
-
-      <!-- 指定座標に巨大テキスト (new系) -->
       <a-text
-        value="ここです！"
-        color="#FF0000"
-        align="center"
-        scale="500 500 500"
-        look-at="[gps-new-camera]"
-        gps-new-entity-place="latitude: 35.83841; longitude: 139.55606; altitude: 3;"
+        value="This content will always face you."
+        look-at="[gps-camera]"
+        scale="50 50 50"
+        gps-entity-place="latitude: <35.83832313832857>; longitude: <139.55588496737695>;"
       ></a-text>
-
-      <!-- 指定座標に青い箱 -->
-      <a-box
-        color="#4CC3D9"
-        scale="500 500 500"
-        look-at="[gps-new-camera]"
-        gps-new-entity-place="latitude: 35.83841; longitude: 139.55606; altitude: 3;"
-      ></a-box>
+      <a-camera gps-camera rotation-reader> </a-camera>
     </a-scene>
-
-    <script>
-      const statusEl = document.getElementById("status");
-
-      // タップ時に geolocation を強制リクエスト
-      document.body.addEventListener("click", () => {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              statusEl.innerText =
-                "✅ 現在地: " +
-                pos.coords.latitude.toFixed(5) + ", " +
-                pos.coords.longitude.toFixed(5);
-            },
-            (err) => {
-              statusEl.innerText = "❌ 位置情報エラー: " + err.message;
-            },
-            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-          );
-        }
-      });
-    </script>
   </body>
 </html>
