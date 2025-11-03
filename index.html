@@ -1,26 +1,86 @@
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Location-based AR.js demo</title>
-    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
-  </head>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Location-based AR.js demo</title>
 
-  <body style="margin: 0; overflow: hidden;">
-    <a-scene
-      vr-mode-ui="enabled: false"
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
-    >
-      <a-text
-        value="This content will always face you."
-        look-at="[gps-camera]"
-        scale="500 500 500"
-        gps-entity-place="latitude: <35.83839>; longitude: <139.55590>;"
-      ></a-text>
-      <a-camera gps-camera rotation-reader> </a-camera>
-    </a-scene>
-  </body>
+  <!-- A-Frame（1.0.4でもOK。迷ったら1.4.0でも可） -->
+  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+
+  <!-- 視線向きコンポーネント -->
+  <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+
+  <!-- 位置情報対応のAR.js（※ NFT ではなく通常の aframe-ar.js を使う） -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    body { margin:0; overflow:hidden; }
+    #ui {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,.45); color: #fff; font: 14px/1.5 system-ui, -apple-system, sans-serif;
+      padding: .6rem .8rem; z-index: 10;
+    }
+    #permBtn { padding: .4rem .8rem; }
+  </style>
+</head>
+<body>
+  <!-- iOS用：センサー許可ボタン & デバッグ -->
+  <div id="ui">
+    <button id="permBtn">センサー許可（iOSで必要な場合）</button>
+    <span id="status">準備中…</span>
+  </div>
+
+  <a-scene
+    vr-mode-ui="enabled: false"
+    embedded
+    renderer="antialias: true; alpha: true"
+    arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+  >
+    <!-- 目標コンテンツ（★緯度経度は<>を外して数値だけ） -->
+    <a-text
+      value="ここが目標地点"
+      look-at="[gps-camera]"
+      scale="500 500 500"
+      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
+      position="0 0 0"
+      color="#FFFF00"
+    ></a-text>
+
+    <!-- ユーザーのカメラ（位置トラッキング付き） -->
+    <a-camera gps-camera rotation-reader></a-camera>
+  </a-scene>
+
+  <script>
+    // iOS 13+ 対応：必要なときだけセンサー許可を要求
+    const btn = document.getElementById('permBtn');
+    const statusEl = document.getElementById('status');
+
+    async function requestIOSPermissionIfNeeded() {
+      try {
+        const D = window.DeviceOrientationEvent;
+        if (D && typeof D.requestPermission === 'function') {
+          const res = await D.requestPermission();
+          statusEl.textContent = (res === 'granted') ? 'センサー許可OK' : 'センサー未許可';
+        } else {
+          statusEl.textContent = 'センサー許可ボタン：この端末では不要';
+        }
+      } catch (e) {
+        statusEl.textContent = 'センサー許可エラー: ' + e.message;
+      }
+    }
+    btn.addEventListener('click', requestIOSPermissionIfNeeded);
+
+    // 位置更新のデバッグ（現在地・精度を表示）
+    window.addEventListener('gps-camera-update-position', (e) => {
+      const { position, accuracy } = e.detail;
+      statusEl.textContent = `現在地: ${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)} / 精度≈${Math.round(accuracy)}m`;
+    });
+
+    // 失敗時のヒント
+    window.addEventListener('gps-camera-error', (e) => {
+      statusEl.textContent = '位置情報エラー: ' + e.detail.message + '（HTTPS/位置情報許可を確認）';
+    });
+  </script>
+</body>
 </html>
