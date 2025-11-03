@@ -3,42 +3,72 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>WEBAR GPS (billboard + compass HUD)</title>
+  <title>ARナビ風HUD</title>
 
-  <!-- 安定版 -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-  <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
 
   <style>
-    html,body{margin:0;height:100%;overflow:hidden}
+    html,body{margin:0;height:100%;overflow:hidden;background:#000}
     a-scene{position:fixed;inset:0;width:100vw;height:100vh}
-    /* 画面オーバーレイUI（HTML） */
+
+    /* 上部案内 */
     #overlayTop{
-      position:fixed; left:50%; top:10px; transform:translateX(-50%);
-      background:rgba(20,80,255,.9); color:#fff; padding:.5rem .9rem;
-      border-radius:999px; font:15px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-      z-index:20; box-shadow:0 8px 30px rgba(0,0,0,.25)
+      position:fixed; left:50%; top:20px; transform:translateX(-50%);
+      background:rgba(0,90,255,.9); color:#fff; padding:.5rem 1rem;
+      border-radius:999px; font:15px/1.3 "Helvetica Neue",sans-serif;
+      z-index:20; box-shadow:0 8px 20px rgba(0,0,0,.3);
     }
-    #ui{
-      position:fixed; left:0; right:0; bottom:0; z-index:10;
-      background:rgba(0,0,0,.55); color:#fff; padding:.55rem .8rem;
-      font:13px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-      display:flex; gap:.6rem; flex-wrap:wrap; align-items:center
+
+    /* 下部ナビUI */
+    #hudContainer{
+      position:fixed; left:50%; bottom:40px; transform:translateX(-50%);
+      display:flex; align-items:center; gap:10px;
+      z-index:20;
     }
-    #ui button{padding:.35rem .8rem}
-    #logs{font-size:12px;white-space:pre-wrap}
+
+    #arrow{
+      width:0; height:0;
+      border-left:30px solid transparent;
+      border-right:30px solid transparent;
+      border-bottom:45px solid #0af;
+      filter:drop-shadow(0 0 6px rgba(0,255,255,.8));
+      transform-origin:center;
+      transition:transform 0.2s ease-out;
+    }
+
+    #distance{
+      background:rgba(0,90,255,.9);
+      color:#fff; font:18px/1.4 "Helvetica Neue",sans-serif;
+      padding:6px 14px; border-radius:12px;
+      box-shadow:0 4px 20px rgba(0,0,0,.25);
+      min-width:60px; text-align:center;
+    }
+
+    /* ログ（デバッグ用） */
+    #logs{
+      position:fixed; bottom:0; left:0; right:0;
+      background:rgba(0,0,0,.5); color:#0f0;
+      font:11px/1.3 monospace; padding:4px; z-index:50;
+    }
+
+    /* iOS許可ボタン */
+    #permBtn{
+      position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+      padding:6px 12px; border-radius:8px; border:none;
+      background:#007aff; color:#fff; z-index:30;
+    }
   </style>
 </head>
-<body>
-  <!-- 上部の案内チップ（HTMLオーバーレイ） -->
-  <div id="overlayTop">この道を進む</div>
 
-  <!-- 下部のログ＆iOS権限 -->
-  <div id="ui">
-    <button id="permBtn">センサー許可（iOS）</button>
-    <div id="logs">準備中…</div>
+<body>
+  <div id="overlayTop">この道を進む</div>
+  <div id="hudContainer">
+    <div id="arrow"></div>
+    <div id="distance">-- m</div>
   </div>
+  <button id="permBtn">センサー許可（iOS）</button>
+  <div id="logs">準備中...</div>
 
   <a-scene
     vr-mode-ui="enabled: false"
@@ -46,141 +76,86 @@
     renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true"
     arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
   >
-    <!-- ▼ 世界固定の看板（20m以内のみ表示） -->
-    <a-entity id="targetBillboard"
-      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
+    <!-- 世界固定のターゲット（20m以内で看板出現） -->
+    <a-entity id="target"
+      gps-entity-place="latitude:35.83839; longitude:139.55590;"
       visible="false"
       rotation="0 0 0">
-      <!-- 背景プレート（表） -->
-      <a-plane position="0 0 0.05" width="20" height="8"
-               material="side: double; color:#FFEB3B; opacity:0.98; emissive:#FFEB3B; emissiveIntensity:0.5"></a-plane>
-      <!-- 背景プレート（裏） -->
-      <a-plane position="0 0 -0.05" width="20" height="8" rotation="0 180 0"
-               material="side: double; color:#FFEB3B; opacity:0.98; emissive:#FFEB3B; emissiveIntensity:0.5"></a-plane>
-
-      <!-- 表文字：a-textで高コントラスト＆大きく -->
-      <a-text position="0 0 0.11"
-              value="TARGET"
-              color="#111" align="center" baseline="center"
-              width="28" negate="false"></a-text>
-      <!-- 裏文字 -->
-      <a-text position="0 0 -0.11" rotation="0 180 0"
-              value="TARGET (Back)"
-              color="#111" align="center" baseline="center"
-              width="28" negate="false"></a-text>
+      <a-plane width="10" height="4"
+               material="color:#FFEB3B; opacity:0.9; emissive:#FFEB3B; emissiveIntensity:0.5">
+      </a-plane>
     </a-entity>
 
-    <!-- ▼ カメラ（HUDはカメラの子にして常に中央表示） -->
-    <a-camera id="cam" gps-camera="gpsMinDistance: 0" rotation-reader>
-      <!-- 中央HUD：コンパスリング＋巨大矢印＋距離 -->
-      <a-entity id="hud" position="0 -0.5 -3">
-        <!-- コンパスリング -->
-        <a-torus radius="1.2" radius-tubular="0.02"
-                 material="color:#ffffff; opacity:0.85; metalness:0; roughness:1"></a-torus>
-        <!-- 矢印（大きめ・発光） -->
-        <a-cone id="hudArrow"
-                position="0 0 0"
-                height="2.8" radius-bottom="1.2" radius-top="0.0"
-                material="color:#00E676; opacity:0.95; emissive:#00E676; emissiveIntensity:0.9">
-        </a-cone>
-        <!-- 距離チップ -->
-        <a-entity id="hudChip" position="0 -1.9 0">
-          <a-plane width="2.8" height="0.8"
-                   material="color:#000; opacity:0.65"></a-plane>
-          <a-text id="hudLabel" position="0 0 0.05"
-                  value="-- m" color="#fff" align="center" baseline="center"
-                  width="6" negate="false"></a-text>
-        </a-entity>
-      </a-entity>
-    </a-camera>
+    <a-camera id="cam" gps-camera rotation-reader></a-camera>
   </a-scene>
 
   <script>
-    const logs = document.getElementById('logs');
-    const btn  = document.getElementById('permBtn');
-    const target = document.getElementById('targetBillboard');
-    const cam = document.getElementById('cam');
-    const hudArrow = document.getElementById('hudArrow');
-    const hudLabel = document.getElementById('hudLabel');
+    const logs=document.getElementById('logs');
+    const btn=document.getElementById('permBtn');
+    const arrow=document.getElementById('arrow');
+    const distanceLabel=document.getElementById('distance');
+    const target=document.getElementById('target');
+    const cam=document.getElementById('cam');
 
-    // iOSセンサー許可
-    btn.addEventListener('click', async () => {
-      try {
-        const D = window.DeviceOrientationEvent;
-        if (D && typeof D.requestPermission === 'function') {
-          const res = await D.requestPermission();
-          logs.textContent = (res === 'granted') ? 'センサー許可OK' : 'センサー未許可';
-        } else {
-          logs.textContent = 'この端末ではセンサー許可不要';
-        }
-      } catch (e) { logs.textContent = 'センサー許可エラー: ' + e.message; }
+    // iOS用センサー許可
+    btn.addEventListener('click', async ()=>{
+      const D=window.DeviceOrientationEvent;
+      if(D&&typeof D.requestPermission==="function"){
+        const res=await D.requestPermission();
+        logs.textContent=(res==="granted")?"センサー許可OK":"センサー未許可";
+      } else {
+        logs.textContent="この端末では不要";
+      }
     });
 
-    // URLクエリ座標（?lat=..&lon=..）
-    const sp = new URLSearchParams(location.search);
-    const qLat = parseFloat(sp.get('lat'));
-    const qLon = parseFloat(sp.get('lon'));
-    if (!isNaN(qLat) && !isNaN(qLon)) {
-      target.setAttribute('gps-entity-place', `latitude: ${qLat}; longitude: ${qLon};`);
+    // URLクエリで座標上書き
+    const sp=new URLSearchParams(location.search);
+    const qLat=parseFloat(sp.get("lat")), qLon=parseFloat(sp.get("lon"));
+    if(!isNaN(qLat)&&!isNaN(qLon)){
+      target.setAttribute("gps-entity-place",`latitude:${qLat};longitude:${qLon};`);
     }
 
-    // 計算関数
-    const toRad = d => d*Math.PI/180, toDeg = r => r*180/Math.PI;
-    function haversine(lat1, lon1, lat2, lon2){
-      const R=6371000; const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-      const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    // 距離・方位計算
+    const toRad=d=>d*Math.PI/180,toDeg=r=>r*180/Math.PI;
+    function haversine(lat1,lon1,lat2,lon2){
+      const R=6371000;
+      const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return 2*R*Math.asin(Math.sqrt(a));
     }
-    function bearing(lat1, lon1, lat2, lon2){
+    function bearing(lat1,lon1,lat2,lon2){
       const y=Math.sin(toRad(lon2-lon1))*Math.cos(toRad(lat2));
-      const x=Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) -
-              Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
-      return (toDeg(Math.atan2(y,x))+360)%360; // 北=0°
+      const x=Math.cos(toRad(lat1))*Math.sin(toRad(lat2))-Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+      return (toDeg(Math.atan2(y,x))+360)%360;
     }
     function getCameraYawDeg(){
-      const rot = cam.object3D.rotation; // radians
-      return ( ( -toDeg(rot.y) % 360 ) + 360 ) % 360;
+      const rot=cam.object3D.rotation;
+      return ((-toDeg(rot.y)%360)+360)%360;
     }
 
-    // 20m以内で看板を出す
-    const NEAR_RANGE_M = 20;
+    const NEAR_RANGE_M=20;
+    window.addEventListener('gps-camera-update-position',(e)=>{
+      const {position,accuracy}=e.detail;
+      const {latitude,longitude}=position;
+      const attr=target.getAttribute('gps-entity-place');
+      const tLat=parseFloat(attr.latitude), tLon=parseFloat(attr.longitude);
+      if(!isNaN(tLat)&&!isNaN(tLon)){
+        const dist=haversine(latitude,longitude,tLat,tLon);
+        const br=bearing(latitude,longitude,tLat,tLon);
+        const camYaw=getCameraYawDeg();
+        const rel=((br-camYaw)+540)%360-180;
 
-    window.addEventListener('gps-camera-update-position', (e) => {
-      const { position, accuracy } = e.detail;
-      const { latitude, longitude } = position;
+        // 矢印の回転（左:-, 右:+）
+        arrow.style.transform=`rotate(${rel}deg)`;
 
-      const attr = target.getAttribute('gps-entity-place');
-      const tLat = parseFloat(attr && attr.latitude), tLon = parseFloat(attr && attr.longitude);
+        // 距離表示
+        distanceLabel.textContent=`${Math.round(dist)} m`;
 
-      let ui = `現在地: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} / 精度≈${Math.round(accuracy)}m`;
+        // 看板表示（20m以内）
+        target.setAttribute('visible',dist<=NEAR_RANGE_M);
 
-      if (!isNaN(tLat) && !isNaN(tLon)) {
-        const dist = haversine(latitude, longitude, tLat, tLon);
-        const br = bearing(latitude, longitude, tLat, tLon);
-        const camYaw = getCameraYawDeg();
-        const rel = ((br - camYaw) + 540) % 360 - 180;   // カメラ前=0°
-
-        // HUD矢印：左右差分で回転
-        hudArrow.setAttribute('rotation', `0 ${-rel} 0`);
-        hudLabel.setAttribute('value', `${Math.round(dist)}m`);
-
-        // 看板のON/OFF（世界固定）
-        target.setAttribute('visible', dist <= NEAR_RANGE_M);
-
-        ui += ` / 目標まで≈${Math.round(dist)}m / 方位=${Math.round(br)}° / 相対=${Math.round(rel)}°`;
+        logs.textContent=`距離:${Math.round(dist)}m 方位:${Math.round(br)}° 相対:${Math.round(rel)}° 精度≈${Math.round(accuracy)}m`;
       }
-      logs.textContent = ui;
-    });
-
-    // 高精度（端末依存）
-    try {
-      cam.components['gps-camera']?.watchPositionOptions && (
-        cam.components['gps-camera'].watchPositionOptions.enableHighAccuracy = true
-      );
-    } catch(e){}
-
-    window.addEventListener('gps-camera-error', (e) => {
-      logs.textContent = '位置情報エラー: ' + e.detail.message + '（HTTPS/権限を確認）';
     });
   </script>
 </body>
