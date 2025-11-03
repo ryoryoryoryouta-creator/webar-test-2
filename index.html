@@ -5,30 +5,30 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Location-based AR.js demo</title>
 
-  <!-- A-Frame（1.0.4でもOK。迷ったら1.4.0でも可） -->
-  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-
-  <!-- 視線向きコンポーネント -->
+  <!-- 安定版を固定（A-Frame 1.3.0） -->
+  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <!-- 視線向き -->
   <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-
-  <!-- 位置情報対応のAR.js（※ NFT ではなく通常の aframe-ar.js を使う） -->
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <!-- AR.js（GPS対応・3.4.5に固定） -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
 
   <style>
     body { margin:0; overflow:hidden; }
     #ui {
       position: fixed; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,.45); color: #fff; font: 14px/1.5 system-ui, -apple-system, sans-serif;
+      background: rgba(0,0,0,.55); color: #fff;
+      font: 14px/1.5 system-ui, -apple-system, sans-serif;
       padding: .6rem .8rem; z-index: 10;
+      display:flex; gap:.6rem; align-items:center; flex-wrap: wrap;
     }
-    #permBtn { padding: .4rem .8rem; }
+    #permBtn { padding: .35rem .8rem; }
+    #logs { font-size: 12px; opacity:.95 }
   </style>
 </head>
 <body>
-  <!-- iOS用：センサー許可ボタン & デバッグ -->
   <div id="ui">
-    <button id="permBtn">センサー許可（iOSで必要な場合）</button>
-    <span id="status">準備中…</span>
+    <button id="permBtn">センサー許可（iOS）</button>
+    <div id="logs">準備中…</div>
   </div>
 
   <a-scene
@@ -37,49 +37,124 @@
     renderer="antialias: true; alpha: true"
     arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
   >
-    <!-- 目標コンテンツ（★緯度経度は<>を外して数値だけ） -->
-    <a-text
-      value="ここが目標地点"
+    <!-- 目標コンテンツ（URLで上書き可） -->
+    <a-text id="targetText"
+      value="TARGET"
       look-at="[gps-camera]"
       scale="500 500 500"
-      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
-      position="0 0 0"
       color="#FFFF00"
+      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
+      visible="false"
     ></a-text>
 
-    <!-- ユーザーのカメラ（位置トラッキング付き） -->
+    <!-- ユーザーのカメラ -->
     <a-camera gps-camera rotation-reader></a-camera>
   </a-scene>
 
   <script>
-    // iOS 13+ 対応：必要なときだけセンサー許可を要求
-    const btn = document.getElementById('permBtn');
-    const statusEl = document.getElementById('status');
+    const logs = document.getElementById('logs');
+    const btn  = document.getElementById('permBtn');
+    const targetEl = document.getElementById('targetText');
 
-    async function requestIOSPermissionIfNeeded() {
+    // iOS用：必要ならセンサー許可
+    btn.addEventListener('click', async () => {
       try {
         const D = window.DeviceOrientationEvent;
         if (D && typeof D.requestPermission === 'function') {
           const res = await D.requestPermission();
-          statusEl.textContent = (res === 'granted') ? 'センサー許可OK' : 'センサー未許可';
+          logs.textContent = (res === 'granted') ? 'センサー許可OK' : 'センサー未許可';
         } else {
-          statusEl.textContent = 'センサー許可ボタン：この端末では不要';
+          logs.textContent = 'この端末ではセンサー許可不要';
         }
       } catch (e) {
-        statusEl.textContent = 'センサー許可エラー: ' + e.message;
+        logs.textContent = 'センサー許可エラー: ' + e.message;
       }
-    }
-    btn.addEventListener('click', requestIOSPermissionIfNeeded);
-
-    // 位置更新のデバッグ（現在地・精度を表示）
-    window.addEventListener('gps-camera-update-position', (e) => {
-      const { position, accuracy } = e.detail;
-      statusEl.textContent = `現在地: ${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)} / 精度≈${Math.round(accuracy)}m`;
     });
 
-    // 失敗時のヒント
+    // URLクエリから目標座標を取得（例：?lat=35.6&lon=139.7）
+    const sp = new URLSearchParams(location.search);
+    const qLat = parseFloat(sp.get('lat'));
+    const qLon = parseFloat(sp.get('lon'));
+    if (!isNaN(qLat) && !isNaN(qLon)) {
+      targetEl.setAttribute('gps-entity-place', `latitude: ${qLat}; longitude: ${qLon};`);
+      targetEl.setAttribute('value', `TARGET (${qLat.toFixed(5)}, ${qLon.toFixed(5)})`);
+    }
+
+    // 現在地の15m先にテストマーカーを自動設置
+    let placedTest = false;
+    function placeTestAhead(lat, lon) {
+      if (placedTest) return;
+      placedTest = true;
+
+      const dist = 15; // 15m前方
+      const bearingDeg = 0; // 真北方向に配置（0度）
+      const R = 6378137; // 地球半径(m)
+
+      const dRad = dist / R;
+      const brng = bearingDeg * Math.PI/180;
+      const lat1 = lat * Math.PI/180;
+      const lon1 = lon * Math.PI/180;
+
+      const lat2 = Math.asin(Math.sin(lat1)*Math.cos(dRad) + Math.cos(lat1)*Math.sin(dRad)*Math.cos(brng));
+      const lon2 = lon1 + Math.atan2(Math.sin(brng)*Math.sin(dRad)*Math.cos(lat1), Math.cos(dRad)-Math.sin(lat1)*Math.sin(lat2));
+
+      const pLat = lat2 * 180/Math.PI;
+      const pLon = lon2 * 180/Math.PI;
+
+      const el = document.createElement('a-text');
+      el.setAttribute('value', 'TEST 15m ahead');
+      el.setAttribute('scale', '500 500 500');
+      el.setAttribute('color', '#00FFAA');
+      el.setAttribute('look-at', '[gps-camera]');
+      el.setAttribute('gps-entity-place', `latitude: ${pLat}; longitude: ${pLon};`);
+      document.querySelector('a-scene').appendChild(el);
+    }
+
+    // 距離計算（ハ―バサイン）
+    function haversine(lat1, lon1, lat2, lon2) {
+      const toRad = d => d * Math.PI/180;
+      const R = 6371000;
+      const dLat = toRad(lat2-lat1);
+      const dLon = toRad(lon2-lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    // 現在地更新
+    window.addEventListener('gps-camera-update-position', (e) => {
+      const { position, accuracy } = e.detail;
+      const { latitude, longitude } = position;
+
+      // UI表示
+      const targetAttr = targetEl.getAttribute('gps-entity-place');
+      const m = targetAttr && targetAttr.latitude ? targetAttr : parseGpsAttr(targetEl);
+      let distStr = '';
+      if (m) {
+        const d = haversine(latitude, longitude, parseFloat(m.latitude), parseFloat(m.longitude));
+        distStr = ` / 目標まで ≈ ${Math.round(d)}m`;
+        if (!targetEl.getAttribute('visible')) targetEl.setAttribute('visible', true);
+      }
+      logs.textContent = `現在地: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} / 精度≈${Math.round(accuracy)}m${distStr}`;
+
+      // テストマーカー（15m前）を一度だけ設置
+      placeTestAhead(latitude, longitude);
+    });
+
+    // 属性パース補助
+    function parseGpsAttr(el){
+      const s = el.getAttribute('gps-entity-place');
+      if (!s) return null;
+      const obj = {};
+      s.split(';').forEach(kv=>{
+        const [k,v] = kv.split(':').map(t=>t && t.trim());
+        if (k && v) obj[k] = v;
+      });
+      return obj;
+    }
+
+    // 失敗時
     window.addEventListener('gps-camera-error', (e) => {
-      statusEl.textContent = '位置情報エラー: ' + e.detail.message + '（HTTPS/位置情報許可を確認）';
+      logs.textContent = '位置情報エラー: ' + e.detail.message + '（HTTPS/位置情報許可を確認）';
     });
   </script>
 </body>
