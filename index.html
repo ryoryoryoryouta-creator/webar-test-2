@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>WEBAR GPS Debug</title>
+  <title>WEBAR GPS Debug (visibility first)</title>
 
   <!-- 安定版 -->
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
@@ -11,47 +11,62 @@
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
 
   <style>
-    body { margin:0; overflow:hidden; }
-    #ui {
-      position: fixed; left:0; right:0; bottom:0; z-index:10;
-      background: rgba(0,0,0,.55); color:#fff; padding:.6rem .8rem;
-      font: 14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-      display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;
+    html,body{margin:0;height:100%;overflow:hidden}
+    a-scene{position:fixed;inset:0;width:100vw;height:100vh} /* ←キャンバスを強制フル画面 */
+    #ui{
+      position:fixed;left:0;right:0;bottom:0;z-index:10;
+      background:rgba(0,0,0,.6);color:#fff;padding:.6rem .8rem;
+      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      display:flex;gap:.6rem;flex-wrap:wrap;align-items:center
     }
-    #permBtn { padding:.35rem .8rem; }
-    #logs { font-size:12px; white-space:pre-wrap }
+    #ui button{padding:.35rem .8rem}
+    #logs{font-size:12px;white-space:pre-wrap}
   </style>
 </head>
 <body>
   <div id="ui">
     <button id="permBtn">センサー許可（iOS）</button>
+    <button id="forceShowBtn">表示テスト（看板を強制表示）</button>
     <div id="logs">準備中…</div>
   </div>
 
   <a-scene
     vr-mode-ui="enabled: false"
     embedded
-    renderer="antialias: true; alpha: true"
+    renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true"
     arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
   >
     <!-- ③ 任意座標ターゲット（URL ?lat=..&lon=.. で指定） -->
     <a-entity id="targetBillboard"
       gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
       visible="false"
+      look-at="[gps-camera]"
+      position="0 0 0"
     >
-      <!-- 看板（両面・巨大・目立つ色） -->
-      <a-plane width="20" height="8" color="#FFEB3B" material="side: double; opacity: 0.95"></a-plane>
-      <a-entity text="value: TARGET; color: #000; align: center; width: 30"></a-entity>
+      <!-- 看板：両面＆発光気味で明るく、超巨大 -->
+      <a-plane width="30" height="12"
+               material="side: double; opacity: 0.98; color: #FFEB3B; emissive: #FFEB3B; emissiveIntensity: 0.6"></a-plane>
+      <a-entity position="0 0 0.1"
+                text="value: TARGET; color: #111; align: center; width: 40; wrapCount: 20"></a-entity>
     </a-entity>
 
     <!-- カメラ（位置トラッキング） -->
     <a-camera gps-camera rotation-reader></a-camera>
+
+    <!-- ① ローカル3m前の巨大オブジェクト（GPS不要/必ず見えるはず） -->
+    <a-box id="localBox"
+           position="0 0 -3"
+           depth="1.5" height="1.5" width="1.5"
+           material="color:#29B6F6; opacity:0.95; side: double; emissive:#29B6F6; emissiveIntensity:0.7">
+    </a-box>
   </a-scene>
 
   <script>
     const logs = document.getElementById('logs');
     const btn  = document.getElementById('permBtn');
+    const forceBtn = document.getElementById('forceShowBtn');
     const scene = document.querySelector('a-scene');
+    const target = document.getElementById('targetBillboard');
 
     // iOSセンサー許可
     btn.addEventListener('click', async () => {
@@ -66,93 +81,44 @@
       } catch (e) { logs.textContent = 'センサー許可エラー: ' + e.message; }
     });
 
-    // URLクエリの座標を読み込み
+    // 看板を強制表示（GPSが未準備でも見えるかの可視性テスト）
+    forceBtn.addEventListener('click', () => {
+      target.setAttribute('visible', true);
+      logs.textContent = '看板を強制表示しました（方角が合わないと画面外の可能性あり）。端末をゆっくり回して探してください。';
+    });
+
+    // URLクエリ座標
     const sp = new URLSearchParams(location.search);
     const qLat = parseFloat(sp.get('lat'));
     const qLon = parseFloat(sp.get('lon'));
-    const targetBillboard = document.getElementById('targetBillboard');
     if (!isNaN(qLat) && !isNaN(qLon)) {
-      targetBillboard.setAttribute('gps-entity-place', `latitude: ${qLat}; longitude: ${qLon};`);
-      targetBillboard.setAttribute('visible', true);
+      target.setAttribute('gps-entity-place', `latitude: ${qLat}; longitude: ${qLon};`);
     }
 
-    // 球をGPS座標に出すユーティリティ
-    function addGpsSphere(lat, lon, radiusMeters, colorText) {
-      const sph = document.createElement('a-sphere');
-      // 半径を「見えるサイズ」に（だいたい1m=1単位換算）
-      const r = Math.max(1, radiusMeters);
-      sph.setAttribute('radius', r);
-      sph.setAttribute('color', colorText || '#00FFAA');
-      sph.setAttribute('material', 'opacity:0.9; side: double');
-      sph.setAttribute('gps-entity-place', `latitude: ${lat}; longitude: ${lon};`);
-      scene.appendChild(sph);
-      return sph;
-    }
-
-    // 現在地から前方へオフセット（m, 北0°）
-    function offsetAhead(lat, lon, distMeters, bearingDeg=0) {
-      const R = 6378137, d = distMeters / R;
-      const br = bearingDeg * Math.PI/180;
-      const lat1 = lat * Math.PI/180, lon1 = lon * Math.PI/180;
-      const lat2 = Math.asin(Math.sin(lat1)*Math.cos(d) + Math.cos(lat1)*Math.sin(d)*Math.cos(br));
-      const lon2 = lon1 + Math.atan2(Math.sin(br)*Math.sin(d)*Math.cos(lat1), Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
-      return { lat: lat2*180/Math.PI, lon: lon2*180/Math.PI };
-    }
-
-    // ハ―バサインで距離
+    // 位置更新
     function haversine(lat1, lon1, lat2, lon2) {
-      const toRad = d => d*Math.PI/180;
-      const R = 6371000;
+      const toRad = d => d*Math.PI/180, R=6371000;
       const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
       const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return 2*R*Math.asin(Math.sqrt(a));
     }
 
-    let placedNear = false, placedAhead = false, placedLocal = false;
-
-    // 位置更新
     window.addEventListener('gps-camera-update-position', (e) => {
       const { position, accuracy } = e.detail;
       const { latitude, longitude } = position;
-
-      // ローカル確認用：カメラ前方3mに巨大球（GPSではなくローカル）— まずこれが見えるかチェック
-      if (!placedLocal) {
-        placedLocal = true;
-        const local = document.createElement('a-sphere');
-        local.setAttribute('radius', 1.2);              // 直径2.4m相当
-        local.setAttribute('color', '#29B6F6');         // 青
-        local.setAttribute('material', 'opacity:0.9; side: double');
-        local.setAttribute('position', '0 0 -3');       // 3m前
-        scene.appendChild(local);
-      }
-
-      // 現在地のすぐ近く（半径1.5m）にも球を置く（見逃し防止）
-      if (!placedNear) {
-        placedNear = true;
-        addGpsSphere(latitude, longitude, 1.5, '#8BC34A'); // 緑
-      }
-
-      // 現在地8m前方に球
-      if (!placedAhead) {
-        placedAhead = true;
-        const ahead = offsetAhead(latitude, longitude, 8, 0); // 北に8m
-        addGpsSphere(ahead.lat, ahead.lon, 1.2, '#00FFAA');   // 薄緑
-      }
-
-      // ターゲットの距離をログ
+      const attr = target.getAttribute('gps-entity-place');
       let distStr = '';
-      const attr = targetBillboard.getAttribute('gps-entity-place');
       if (attr && attr.latitude && attr.longitude) {
         const d = haversine(latitude, longitude, parseFloat(attr.latitude), parseFloat(attr.longitude));
         distStr = ` / TARGET ≈ ${Math.round(d)}m`;
-        targetBillboard.setAttribute('visible', true);
+        // 一旦見えるようにする（可視性優先）
+        target.setAttribute('visible', true);
       }
       logs.textContent = `現在地: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} / 精度≈${Math.round(accuracy)}m${distStr}`;
     });
 
-    // 失敗時
     window.addEventListener('gps-camera-error', (e) => {
-      logs.textContent = '位置情報エラー: ' + e.detail.message + '（HTTPS/許可を確認）';
+      logs.textContent = '位置情報エラー: ' + e.detail.message + '（HTTPS/権限を確認）';
     });
   </script>
 </body>
