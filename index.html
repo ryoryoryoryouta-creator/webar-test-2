@@ -213,9 +213,8 @@
 
         // 表示範囲外はスキップ
         const dist = Math.sqrt(dLon * dLon + dLat * dLat);
-        if (dist > maxRange) {
-          return;
-        }
+        const distClamped = Math.min(dist, maxRange);
+        const ratio = distClamped / dist || 0;   // distが0のときNaN回避
 
         const x = centerX + dLon * scale;
         const y = centerY - dLat * scale;
@@ -287,6 +286,7 @@
 
 
       });
+
        // ▼ ループが終わった「あと」で描画
       drawMiniMap(latitude, longitude);
 
