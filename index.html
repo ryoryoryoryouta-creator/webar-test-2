@@ -3,159 +3,60 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ARナビ風HUD</title>
+  <title>WEBAR Image Marker</title>
 
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
-
-  <style>
-    html,body{margin:0;height:100%;overflow:hidden;background:#000}
-    a-scene{position:fixed;inset:0;width:100vw;height:100vh}
-
-    /* 上部案内 */
-    #overlayTop{
-      position:fixed; left:50%; top:20px; transform:translateX(-50%);
-      background:rgba(0,90,255,.9); color:#fff; padding:.5rem 1rem;
-      border-radius:999px; font:15px/1.3 "Helvetica Neue",sans-serif;
-      z-index:20; box-shadow:0 8px 20px rgba(0,0,0,.3);
-    }
-
-    /* 下部ナビUI */
-    #hudContainer{
-      position:fixed; left:50%; bottom:40px; transform:translateX(-50%);
-      display:flex; align-items:center; gap:10px;
-      z-index:20;
-    }
-
-    #arrow{
-      width:0; height:0;
-      border-left:30px solid transparent;
-      border-right:30px solid transparent;
-      border-bottom:45px solid #0af;
-      filter:drop-shadow(0 0 6px rgba(0,255,255,.8));
-      transform-origin:center;
-      transition:transform 0.2s ease-out;
-    }
-
-    #distance{
-      background:rgba(0,90,255,.9);
-      color:#fff; font:18px/1.4 "Helvetica Neue",sans-serif;
-      padding:6px 14px; border-radius:12px;
-      box-shadow:0 4px 20px rgba(0,0,0,.25);
-      min-width:60px; text-align:center;
-    }
-
-    /* ログ（デバッグ用） */
-    #logs{
-      position:fixed; bottom:0; left:0; right:0;
-      background:rgba(0,0,0,.5); color:#0f0;
-      font:11px/1.3 monospace; padding:4px; z-index:50;
-    }
-
-    /* iOS許可ボタン */
-    #permBtn{
-      position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
-      padding:6px 12px; border-radius:8px; border:none;
-      background:#007aff; color:#fff; z-index:30;
-    }
-  </style>
 </head>
 
-<body>
-  <div id="overlayTop">この道を進む</div>
-  <div id="hudContainer">
-    <div id="arrow"></div>
-    <div id="distance">-- m</div>
-  </div>
-  <button id="permBtn">センサー許可（iOS）</button>
-  <div id="logs">準備中...</div>
-
+<body style="margin:0;overflow:hidden;">
   <a-scene
     vr-mode-ui="enabled: false"
     embedded
-    renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true"
-    arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+    arjs="sourceType: webcam; debugUIEnabled: false;"
   >
-    <!-- 世界固定のターゲット（20m以内で看板出現） -->
-    <a-entity id="target"
-      gps-entity-place="latitude:35.83839; longitude:139.55590;"
-      visible="false"
-      rotation="0 0 0">
-      <a-plane width="10" height="4"
-               material="color:#FFEB3B; opacity:0.9; emissive:#FFEB3B; emissiveIntensity:0.5">
-      </a-plane>
-    </a-entity>
+    <!-- ▼ 画像マーカー -->
+    <a-image id="marker"
+      src="./marker.png"
+      width="10"
+      height="10"
+      look-at="[gps-camera]"
+      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
+      visible="false">
+    </a-image>
 
-    <a-camera id="cam" gps-camera rotation-reader></a-camera>
+    <a-camera gps-camera rotation-reader></a-camera>
   </a-scene>
 
   <script>
-    const logs=document.getElementById('logs');
-    const btn=document.getElementById('permBtn');
-    const arrow=document.getElementById('arrow');
-    const distanceLabel=document.getElementById('distance');
-    const target=document.getElementById('target');
-    const cam=document.getElementById('cam');
+    const cam = document.querySelector('[gps-camera]');
+    const marker = document.querySelector('#marker');
+    const toRad = d => d * Math.PI / 180;
+    const R = 6371000;
 
-    // iOS用センサー許可
-    btn.addEventListener('click', async ()=>{
-      const D=window.DeviceOrientationEvent;
-      if(D&&typeof D.requestPermission==="function"){
-        const res=await D.requestPermission();
-        logs.textContent=(res==="granted")?"センサー許可OK":"センサー未許可";
-      } else {
-        logs.textContent="この端末では不要";
-      }
-    });
-
-    // URLクエリで座標上書き
-    const sp=new URLSearchParams(location.search);
-    const qLat=parseFloat(sp.get("lat")), qLon=parseFloat(sp.get("lon"));
-    if(!isNaN(qLat)&&!isNaN(qLon)){
-      target.setAttribute("gps-entity-place",`latitude:${qLat};longitude:${qLon};`);
+    function haversine(lat1, lon1, lat2, lon2) {
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
     }
 
-    // 距離・方位計算
-    const toRad=d=>d*Math.PI/180,toDeg=r=>r*180/Math.PI;
-    function haversine(lat1,lon1,lat2,lon2){
-      const R=6371000;
-      const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);
-      const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-      return 2*R*Math.asin(Math.sqrt(a));
-    }
-    function bearing(lat1,lon1,lat2,lon2){
-      const y=Math.sin(toRad(lon2-lon1))*Math.cos(toRad(lat2));
-      const x=Math.cos(toRad(lat1))*Math.sin(toRad(lat2))-Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
-      return (toDeg(Math.atan2(y,x))+360)%360;
-    }
-    function getCameraYawDeg(){
-      const rot=cam.object3D.rotation;
-      return ((-toDeg(rot.y)%360)+360)%360;
-    }
+    window.addEventListener('gps-camera-update-position', e => {
+      const { latitude, longitude } = e.detail.position;
+      const target = marker.getAttribute('gps-entity-place');
+      const dist = haversine(
+        latitude,
+        longitude,
+        parseFloat(target.latitude),
+        parseFloat(target.longitude)
+      );
 
-    const NEAR_RANGE_M=20;
-    window.addEventListener('gps-camera-update-position',(e)=>{
-      const {position,accuracy}=e.detail;
-      const {latitude,longitude}=position;
-      const attr=target.getAttribute('gps-entity-place');
-      const tLat=parseFloat(attr.latitude), tLon=parseFloat(attr.longitude);
-      if(!isNaN(tLat)&&!isNaN(tLon)){
-        const dist=haversine(latitude,longitude,tLat,tLon);
-        const br=bearing(latitude,longitude,tLat,tLon);
-        const camYaw=getCameraYawDeg();
-        const rel=((br-camYaw)+540)%360-180;
-
-        // 矢印の回転（左:-, 右:+）
-        arrow.style.transform=`rotate(${rel}deg)`;
-
-        // 距離表示
-        distanceLabel.textContent=`${Math.round(dist)} m`;
-
-        // 看板表示（20m以内）
-        target.setAttribute('visible',dist<=NEAR_RANGE_M);
-
-        logs.textContent=`距離:${Math.round(dist)}m 方位:${Math.round(br)}° 相対:${Math.round(rel)}° 精度≈${Math.round(accuracy)}m`;
-      }
+      marker.setAttribute('visible', dist <= 20); // 20m以内で表示
     });
   </script>
 </body>
