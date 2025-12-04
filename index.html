@@ -107,7 +107,58 @@
     window.addEventListener("gps-camera-update-position", e => {
       const { latitude, longitude } = e.detail.position;
       logs.textContent = `lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)}`;
-    });
-  </script>
+
+      // ===============================
+      // ▼ ここから追加：距離に応じた処理
+      // ===============================
+
+      const marker = document.getElementById("marker");
+
+      // ターゲットの lat/lon を取得
+      const attr = marker.getAttribute("gps-entity-place");
+      const targetLat = parseFloat(attr.latitude);
+      const targetLon = parseFloat(attr.longitude);
+
+      // ▼ 距離計算（haversine）
+      const toRad = d => d * Math.PI / 180;
+      const R = 6371000;
+      const dLat = toRad(targetLat - latitude);
+      const dLon = toRad(targetLon - longitude);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(latitude)) *
+        Math.cos(toRad(targetLat)) *
+        Math.sin(dLon / 2) ** 2;
+      const dist = 2 * R * Math.asin(Math.sqrt(a));  // メートル
+
+      // -------------------------------
+      // ▼ 距離でスケール調整
+      // -------------------------------
+      const minScale = 1.5;   // 近距離の最大サイズ
+      const maxScale = 0.3;   // 遠距離の最小サイズ
+      const maxDist  = 80;    // 80m 以上は maxScale で固定
+
+      let d = Math.min(dist, maxDist);   // 0〜maxDist に制限
+      let t = d / maxDist;               // 0〜1
+      let scale = minScale * (1 - t) + maxScale * t;
+
+      marker.setAttribute("scale", `${scale} ${scale} ${scale}`);
+
+      // -------------------------------
+      // ▼ 距離で透明度調整
+      //    近い → 不透明(1.0)
+      //    遠い → 透明(0.3)
+      // -------------------------------
+      const minOpacity = 0.3;   // 近距離での不透明度
+      const maxOpacity = 1.0;   // 遠距離での透明度
+
+      let opacity = minOpacity * (1 - t) + maxOpacity * t;
+
+      marker.setAttribute("material", `opacity: ${opacity}`);
+
+      // ===============================
+      // ▼ ここまで追加コード
+      // ===============================
+
 </body>
 </html>
