@@ -285,11 +285,11 @@
         let opacity = minOpacity * (1 - t) + maxOpacity * t;
         markerEl.setAttribute("material", `opacity: ${opacity}`);
 
-      // すべての marker のスケール / 透明度更新が終わったあとに
-      // ミニマップを更新
-      drawMiniMap(latitude, longitude);
 
       });
+       // ▼ ループが終わった「あと」で描画
+      drawMiniMap(latitude, longitude);
+
     });
  
 
