@@ -58,14 +58,27 @@
     vr-mode-ui="enabled: false"
     arjs="sourceType: webcam; debugUIEnabled: false;"
   >
-    <!-- ▼ タップ可能な画像 -->
-    <a-image id="marker"
+    <!-- ▼ タップ可能な画像①（元の地点） -->
+    <a-image id="marker1"
       class="clickable"
-      src="./marker.png"
+      src="./marker1.png"
       width="3"
       height="3"
       look-at="[gps-camera]"
       gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
+      position="0 1.5 0"
+      visible="true">
+    </a-image>
+
+    <!-- ▼ タップ可能な画像②（新しい地点） -->
+    <a-image id="marker2"
+      class="clickable"
+      src="./marker2.png"
+      width="3"
+      height="3"
+      look-at="[gps-camera]"
+      gps-entity-place="latitude: 35.838194559064135; longitude: 139.55622690576655;"
+      position="0 1.5 0"
       visible="true">
     </a-image>
 
@@ -80,16 +93,20 @@
     </a-camera>
   </a-scene>
 
+
   <script>
     const popup = document.getElementById("popup");
     const popupText = document.getElementById("popupText");
     const logs = document.getElementById("logs");
 
-    // 説明文（画像1つなら固定／複数ならIDごとに設定可能）
-    const descriptionText = "これはターゲット地点の説明文です。好きな文章に変更できます。";
+    // 画像ごとの説明文
+    const descriptions = {
+      marker1: "ここはポイント①の説明文です。",
+      marker2: "ここはポイント②の説明文です。"
+    };
 
-    function openPopup() {
-      popupText.textContent = descriptionText;
+    function openPopup(text) {
+      popupText.textContent = text;
       popup.style.display = "block";
     }
 
@@ -97,70 +114,73 @@
       popup.style.display = "none";
     }
 
-    // ▼ マーカーをタップするとポップアップ表示
-    const marker = document.getElementById("marker");
-    marker.addEventListener("click", () => {
-      openPopup();
+    // ▼ すべての .clickable にクリックイベントを付与
+    document.querySelectorAll(".clickable").forEach(el => {
+      el.addEventListener("click", () => {
+        const desc = descriptions[el.id] || "説明文未設定です。";
+        openPopup(desc);
+      });
     });
 
+
+
     // ▼ GPSログ（任意）
+    // ▼ GPSログ ＋ 距離に応じた処理
     window.addEventListener("gps-camera-update-position", e => {
       const { latitude, longitude } = e.detail.position;
       logs.textContent = `lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)}`;
 
-      // ===============================
-      // ▼ ここから追加：距離に応じた処理
-      // ===============================
-
-      const marker = document.getElementById("marker");
-
-      // ターゲットの lat/lon を取得
-      const attr = marker.getAttribute("gps-entity-place");
-      const targetLat = parseFloat(attr.latitude);
-      const targetLon = parseFloat(attr.longitude);
-
-      // ▼ 距離計算（haversine）
+      // 距離計算用の関数
       const toRad = d => d * Math.PI / 180;
       const R = 6371000;
-      const dLat = toRad(targetLat - latitude);
-      const dLon = toRad(targetLon - longitude);
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(latitude)) *
-        Math.cos(toRad(targetLat)) *
-        Math.sin(dLon / 2) ** 2;
-      const dist = 2 * R * Math.asin(Math.sqrt(a));  // メートル
 
-      // -------------------------------
-      // ▼ 距離でスケール調整
-      // -------------------------------
-      const minScale = 1.5;   // 近距離の最大サイズ
-      const maxScale = 0.3;   // 遠距離の最小サイズ
-      const maxDist  = 80;    // 80m 以上は maxScale で固定
+      function distance(lat1, lon1, lat2, lon2) {
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(a));
+      }
 
-      let d = Math.min(dist, maxDist);   // 0〜maxDist に制限
-      let t = d / maxDist;               // 0〜1
-      let scale = minScale * (1 - t) + maxScale * t;
+      // スケール＆透明度パラメータ
+      const minScale = 1.5;  // 近距離の最大サイズ
+      const maxScale = 0.3;  // 遠距離の最小サイズ
+      const maxDist  = 80;   // 80m以上は maxScale で固定
 
-      marker.setAttribute("scale", `${scale} ${scale} ${scale}`);
+      const minOpacity = 0.3;  // 近距離での透明度（0〜1）
+      const maxOpacity = 1.0;  // 遠距離での透明度
 
-      // -------------------------------
-      // ▼ 距離で透明度調整
-      //    近い → 不透明(1.0)
-      //    遠い → 透明(0.3)
-      // -------------------------------
-      const minOpacity = 0.3;   // 近距離での不透明度
-      const maxOpacity = 1.0;   // 遠距離での透明度
+      // 対象マーカーのIDリスト
+      const markerIds = ["marker1", "marker2"];
 
-      let opacity = minOpacity * (1 - t) + maxOpacity * t;
+      markerIds.forEach(id => {
+        const markerEl = document.getElementById(id);
+        if (!markerEl) return;
 
-      marker.setAttribute("material", `opacity: ${opacity}`);
+        const attr = markerEl.getAttribute("gps-entity-place");
+        if (!attr) return;
 
-      // ===============================
-      // ▼ ここまで追加コード
-      // ===============================
+        const targetLat = parseFloat(attr.latitude);
+        const targetLon = parseFloat(attr.longitude);
+        if (isNaN(targetLat) || isNaN(targetLon)) return;
 
-    });   
+        const dist = distance(latitude, longitude, targetLat, targetLon);
+
+        // --- スケール調整 ---
+        let d = Math.min(dist, maxDist);
+        let t = d / maxDist; // 0〜1
+        let scale = minScale * (1 - t) + maxScale * t;
+        markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
+
+        // --- 透明度調整 ---
+        let opacity = minOpacity * (1 - t) + maxOpacity * t;
+        markerEl.setAttribute("material", `opacity: ${opacity}`);
+      });
+    });
+ 
 
   </script>
 
