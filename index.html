@@ -65,7 +65,7 @@
       width="3"
       height="3"
       look-at="[gps-camera]"
-      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
+      gps-entity-place="latitude: 35.636053; longitude: 139.740319;"
       visible="true">
     </a-image>
 
@@ -76,7 +76,18 @@
       width="3"
       height="3"
       look-at="[gps-camera]"
-      gps-entity-place="latitude: 35.838194559064135; longitude: 139.55622690576655;"
+      gps-entity-place="latitude: 35.635801; longitude: 139.740399;"
+      visible="true">
+    </a-image>
+
+    <!-- ▼ タップ可能な画像③（新しい地点） -->
+    <a-image id="marker3"
+      class="clickable"
+      src="./marker3.png"
+      width="3"
+      height="3"
+      look-at="[gps-camera]"
+      gps-entity-place="latitude: 35.635826; longitude: 139.740233;"
       visible="true">
     </a-image>
 
@@ -100,7 +111,8 @@
     // 画像ごとの説明文
     const descriptions = {
       marker1: "ここはポイント①の説明文です。",
-      marker2: "ここはポイント②の説明文です。"
+      marker2: "ここはポイント②の説明文です。",
+      marker3: "ここはポイント③の説明文です。"
     };
 
     function openPopup(text) {
