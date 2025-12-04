@@ -219,6 +219,15 @@
         const x = centerX + dLon * scale;
         const y = centerY - dLat * scale;
 
+        // --- 近距離（5m以内）は少しズラす（見やすくする） ---
+        if (dist < 5) {
+          const angle = Math.atan2(dLat, dLon);   // 現在地→マーカーの角度
+          const offset = 12;                      // ピクセルオフセット（お好みで調整）
+          x = centerX + Math.cos(angle) * offset;
+          y = centerY - Math.sin(angle) * offset;
+        }
+
+
         // マーカー点
         ctx.fillStyle = m.color;
         ctx.beginPath();
