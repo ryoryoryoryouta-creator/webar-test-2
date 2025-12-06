@@ -46,7 +46,7 @@
 
   <!-- ▼ ポップアップ -->
   <div id="popup">
-    <h2>説明タイトル</h2>
+    <h2>高輪さんぽ</h2>
     <p id="popupText">ここに説明文が入ります。</p>
     <button onclick="closePopup()">閉じる</button>
   </div>
@@ -62,10 +62,10 @@
     <a-image id="marker1"
       class="clickable"
       src="./marker1.png"
-      width="10"
-      height="10"
+      width="12"
+      height="12"
       look-at="[gps-camera]"
-      gps-entity-place="latitude: 35.636053; longitude: 139.740319;"
+      gps-entity-place="latitude: 35.63581; longitude: 139.74066;"
       visible="true">
     </a-image>
 
@@ -73,10 +73,10 @@
     <a-image id="marker2"
       class="clickable"
       src="./marker2.png"
-      width="10"
-      height="10"
+      width="12"
+      height="12"
       look-at="[gps-camera]"
-      gps-entity-place="latitude: 35.635801; longitude: 139.740399;"
+      gps-entity-place="latitude: 35.6363613; longitude: 139.73978;"
       visible="true">
     </a-image>
 
@@ -101,8 +101,8 @@
 
     // 画像ごとの説明文
     const descriptions = {
-      marker1: "ここはポイント①の説明文です。",
-      marker2: "ここはポイント②の説明文です。"
+      marker1: "ここは高輪ゲートウェイ駅です。皆さん今日もご安全に！",
+      marker2: "ここは商業施設入り口です。レッツ エンジョイ！。"
     };
 
     function openPopup(text) {
@@ -150,7 +150,7 @@
       const maxScale = 0.3;  // 遠距離の最小サイズ
       const maxDist  = 80;   // 80m以上は maxScale で固定
 
-      const minOpacity = 0.3;  // 近距離での透明度（0〜1）
+      const minOpacity = 0.5;  // 近距離での透明度（0〜1）
       const maxOpacity = 1.0;  // 遠距離での透明度
 
       // 対象マーカーのIDリスト
