@@ -12,28 +12,34 @@
   <style>
     body { margin:0; overflow:hidden; }
 
-    /* ポップアップ（modal） */
+    /* ▼ ポップアップ（modal） */
     #popup {
       position:fixed; left:50%; top:50%;
       transform:translate(-50%,-50%);
       background:#fff; color:#000;
       padding:20px; border-radius:12px;
       box-shadow:0 8px 25px rgba(0,0,0,.3);
-      width:80%; max-width:320px;
+      width:85%; max-width:340px;
       display:none; z-index:100;
       font-family:"Helvetica Neue",sans-serif;
+      text-align:center;
     }
     #popup h2 { margin-top:0; font-size:20px; }
+    #popup img {
+      width:100%; 
+      border-radius:8px; 
+      margin:10px 0;
+    }
     #popup button {
       margin-top:15px;
-      padding:8px 16px;
+      padding:10px 18px;
       border:none;
       border-radius:8px;
       background:#007aff; color:#fff;
       font-size:16px; cursor:pointer;
     }
 
-    /* 画面オーバーレイ（ログ） */
+    /* ▼ GPSログ */
     #logs {
       position:fixed; bottom:0; left:0; right:0;
       background:rgba(0,0,0,.5); color:#0f0;
@@ -46,8 +52,9 @@
 
   <!-- ▼ ポップアップ -->
   <div id="popup">
-    <h2>高輪さんぽ</h2>
-    <p id="popupText">ここに説明文が入ります。</p>
+    <h2 id="popupTitle">タイトル</h2>
+    <img id="popupImg" src="" style="display:none;">
+    <p id="popupText"></p>
     <button onclick="closePopup()">閉じる</button>
   </div>
 
@@ -58,31 +65,30 @@
     vr-mode-ui="enabled: false"
     arjs="sourceType: webcam; debugUIEnabled: false;"
   >
-    <!-- ▼ タップ可能な画像①（元の地点） -->
+
+    <!-- ▼ マーカー① -->
     <a-image id="marker1"
       class="clickable"
       src="./marker1.png"
       width="12"
       height="12"
       look-at="[gps-camera]"
-      gps-entity-place="latitude: 35.63581; longitude: 139.74066;"
+      gps-entity-place="latitude: 35.83839; longitude: 139.55590;"
       visible="true">
     </a-image>
 
-    <!-- ▼ タップ可能な画像②（新しい地点） -->
+    <!-- ▼ マーカー② -->
     <a-image id="marker2"
       class="clickable"
       src="./marker2.png"
       width="12"
       height="12"
       look-at="[gps-camera]"
-      gps-entity-place="latitude: 35.6363613; longitude: 139.73978;"
+      gps-entity-place="latitude: 35.838194559064135; longitude: 139.55622690576655;"
       visible="true">
     </a-image>
 
-
-
-    <!-- カメラ（クリック用カーソルつき） -->
+    <!-- ▼ カメラ & タップカーソル -->
     <a-camera gps-camera rotation-reader>
       <a-cursor
         fuse="false"
@@ -91,98 +97,122 @@
         material="color: black; opacity: 0.8">
       </a-cursor>
     </a-camera>
+
   </a-scene>
 
 
-  <script>
-    const popup = document.getElementById("popup");
-    const popupText = document.getElementById("popupText");
-    const logs = document.getElementById("logs");
+<script>
+/* ----------------------------------------
+   ▼ ポップアップ要素取得
+---------------------------------------- */
+const popup = document.getElementById("popup");
+const popupTitle = document.getElementById("popupTitle");
+const popupText = document.getElementById("popupText");
+const popupImg = document.getElementById("popupImg");
+const logs = document.getElementById("logs");
 
-    // 画像ごとの説明文
-    const descriptions = {
-      marker1: "ここは高輪ゲートウェイ駅です。皆さん今日もご安全に！",
-      marker2: "ここは商業施設入り口です。レッツ エンジョイ！。"
-    };
+/* ----------------------------------------
+   ▼ マーカーごとのデータ（タイトル・文章・画像）
+   ※ 画像ファイルを GitHub に置いて参照してください
+---------------------------------------- */
+const popupData = {
+  marker1: {
+    title: "高輪ゲートウェイ駅",
+    text: "ここは高輪ゲートウェイ駅です。皆さん今日もご安全に！",
+    img: "./sample1.jpg"   // ← 好きな画像に変更
+  },
+  marker2: {
+    title: "商業施設入り口",
+    text: "ここは商業施設入り口です。レッツ エンジョイ！",
+    img: "./sample2.jpg"
+  }
+};
 
-    function openPopup(text) {
-      popupText.textContent = text;
-      popup.style.display = "block";
-    }
+/* ----------------------------------------
+   ▼ ポップアップ開閉
+---------------------------------------- */
+function openPopup(data) {
+  popupTitle.textContent = data.title;
+  popupText.textContent = data.text;
 
-    function closePopup() {
-      popup.style.display = "none";
-    }
+  if (data.img) {
+    popupImg.src = data.img;
+    popupImg.style.display = "block";
+  } else {
+    popupImg.style.display = "none";
+  }
 
-    // ▼ すべての .clickable にクリックイベントを付与
-    document.querySelectorAll(".clickable").forEach(el => {
-      el.addEventListener("click", () => {
-        const desc = descriptions[el.id] || "説明文未設定です。";
-        openPopup(desc);
-      });
-    });
+  popup.style.display = "block";
+}
 
+function closePopup() {
+  popup.style.display = "none";
+}
 
+/* ----------------------------------------
+   ▼ マーカーをクリックしたらポップアップ表示
+---------------------------------------- */
+document.querySelectorAll(".clickable").forEach(el => {
+  el.addEventListener("click", () => {
+    const data = popupData[el.id];
+    if (data) openPopup(data);
+  });
+});
 
-    // ▼ GPSログ（任意）
-    // ▼ GPSログ ＋ 距離に応じた処理
-    window.addEventListener("gps-camera-update-position", e => {
-      const { latitude, longitude } = e.detail.position;
-      logs.textContent = `lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)}`;
+/* ----------------------------------------
+   ▼ GPS更新：ログ＋ARマーカー距離に応じたスケール変化
+---------------------------------------- */
+window.addEventListener("gps-camera-update-position", e => {
+  const { latitude, longitude } = e.detail.position;
+  logs.textContent = `lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)}`;
 
-      // 距離計算用の関数
-      const toRad = d => d * Math.PI / 180;
-      const R = 6371000;
+  // 距離計算
+  const toRad = d => d * Math.PI / 180;
+  const R = 6371000;
 
-      function distance(lat1, lon1, lat2, lon2) {
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos(toRad(lat1)) *
-          Math.cos(toRad(lat2)) *
-          Math.sin(dLon / 2) ** 2;
-        return 2 * R * Math.asin(Math.sqrt(a));
-      }
+  const markerIds = ["marker1", "marker2"];
 
-      // スケール＆透明度パラメータ
-      const minScale = 2.0;  // 近距離の最大サイズ
-      const maxScale = 0.8;  // 遠距離の最小サイズ
-      const maxDist  = 80;   // 80m以上は maxScale で固定
+  markerIds.forEach(id => {
+    const markerEl = document.getElementById(id);
+    if (!markerEl) return;
 
-      const minOpacity = 0.5;  // 近距離での透明度（0〜1）
-      const maxOpacity = 1.0;  // 遠距離での透明度
+    const attr = markerEl.getAttribute("gps-entity-place");
+    if (!attr) return;
 
-      // 対象マーカーのIDリスト
-      const markerIds = ["marker1", "marker2"];
+    const targetLat = parseFloat(attr.latitude);
+    const targetLon = parseFloat(attr.longitude);
 
-      markerIds.forEach(id => {
-        const markerEl = document.getElementById(id);
-        if (!markerEl) return;
+    const dLat = toRad(targetLat - latitude);
+    const dLon = toRad(targetLon - longitude);
 
-        const attr = markerEl.getAttribute("gps-entity-place");
-        if (!attr) return;
+    const a =
+      Math.sin(dLat / 2)**2 +
+      Math.cos(toRad(latitude)) *
+      Math.cos(toRad(targetLat)) *
+      Math.sin(dLon / 2)**2;
 
-        const targetLat = parseFloat(attr.latitude);
-        const targetLon = parseFloat(attr.longitude);
-        if (isNaN(targetLat) || isNaN(targetLon)) return;
+    const dist = 2 * R * Math.asin(Math.sqrt(a));
 
-        const dist = distance(latitude, longitude, targetLat, targetLon);
+    // ▼ 距離に応じたスケール調整
+    const minScale = 2.0;
+    const maxScale = 0.8;
+    const maxDist = 80;
 
-        // --- スケール調整 ---
-        let d = Math.min(dist, maxDist);
-        let t = d / maxDist; // 0〜1
-        let scale = minScale * (1 - t) + maxScale * t;
-        markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
+    let d = Math.min(dist, maxDist);
+    let t = d / maxDist;
+    let scale = minScale * (1 - t) + maxScale * t;
 
-        // --- 透明度調整 ---
-        let opacity = minOpacity * (1 - t) + maxOpacity * t;
-        markerEl.setAttribute("material", `opacity: ${opacity}`);
-      });
-    });
- 
+    markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
-  </script>
+    // ▼ 透明度調整（好みで変更）
+    const minOpacity = 0.5;
+    const maxOpacity = 1.0;
+
+    let opacity = minOpacity * (1 - t) + maxOpacity * t;
+    markerEl.setAttribute("material", `opacity: ${opacity}`);
+  });
+});
+</script>
 
 </body>
 </html>
