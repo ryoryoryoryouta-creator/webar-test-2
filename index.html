@@ -318,7 +318,7 @@ function buildAR(){
     <a-scene
       embedded
       vr-mode-ui="enabled: false"
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs="sourceType: webcam; debugUIEnabled: false; gpsMinDistance: 0; gpsTimeInterval: 1000;"
     >
       ${Object.entries(popupData).map(([id, poi]) => {
         const icon = getKamonIcon(poi);
