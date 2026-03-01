@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>WEBAR + MAP Switch</title>
+  <title>WEBAR + MAP Switch (2 POIs)</title>
 
   <!-- ===== Leaflet (2D Map) ===== -->
   <link
@@ -31,7 +31,7 @@
       position:fixed; top:10px; left:10px; right:10px;
       display:flex; gap:10px;
       z-index:2000;
-      pointer-events:none; /* ボタン以外は透過 */
+      pointer-events:none;
     }
     .btn{
       pointer-events:auto;
@@ -42,39 +42,35 @@
       background:#111;
       color:#fff;
       font-size:15px;
-      opacity:.9;
+      opacity:.92;
       cursor:pointer;
     }
-    .btn.active{
-      background:#007aff;
-    }
+    .btn.active{ background:#007aff; }
 
     /* ===== Views ===== */
-    .view {
+    .view{
       position:fixed; inset:0;
       display:none;
       z-index:1;
     }
-    .view.active { display:block; }
+    .view.active{ display:block; }
 
-    /* Leaflet map container */
-    #map { width:100%; height:100%; }
+    #map{ width:100%; height:100%; }
 
-    /* ===== Popup modal (shared) ===== */
-    #popup {
+    /* ===== Popup modal ===== */
+    #popup{
       position:fixed; left:50%; top:50%;
       transform:translate(-50%,-50%);
       background:#fff; color:#000;
       padding:18px; border-radius:14px;
       box-shadow:0 10px 28px rgba(0,0,0,.35);
-      width:88%; max-width:360px;
+      width:90%; max-width:380px;
       display:none; z-index:3000;
-      text-align:center;
     }
-    #popup h2 { margin:0 0 8px; font-size:18px; }
-    #popup img { width:100%; border-radius:10px; margin:10px 0; display:none; }
-    #popup p { margin:0; font-size:14px; line-height:1.5; text-align:left; }
-    #popup button {
+    #popup h2{ margin:0 0 8px; font-size:18px; }
+    #popup img{ width:100%; border-radius:10px; margin:10px 0; display:none; }
+    #popup p{ margin:0; font-size:14px; line-height:1.6; }
+    #popup button{
       margin-top:14px;
       padding:10px 18px;
       border:none;
@@ -84,8 +80,8 @@
       width:100%;
     }
 
-    /* ===== Logs (shared) ===== */
-    #logs {
+    /* ===== Logs ===== */
+    #logs{
       position:fixed; bottom:0; left:0; right:0;
       background:rgba(0,0,0,.55); color:#0f0;
       padding:6px 8px; font-size:11px;
@@ -95,7 +91,7 @@
       text-overflow:ellipsis;
     }
 
-    /* Leaflet attribution: map右下に出るやつを邪魔しないため少し上げる */
+    /* Leaflet attribution（右下）をログに被せない */
     .leaflet-control-attribution{
       margin-bottom:42px !important;
     }
@@ -110,7 +106,7 @@
     <button id="btnAR" class="btn" onclick="showView('ar')">AR</button>
   </div>
 
-  <!-- ===== Popup (shared) ===== -->
+  <!-- ===== Popup ===== -->
   <div id="popup">
     <h2 id="popupTitle">タイトル</h2>
     <img id="popupImg" src="" alt="">
@@ -118,7 +114,7 @@
     <button onclick="closePopup()">閉じる</button>
   </div>
 
-  <div id="logs">準備中...</div>
+  <div id="logs">[MAP] 準備中...</div>
 
   <!-- ===== MAP VIEW ===== -->
   <div id="viewMap" class="view active">
@@ -127,71 +123,112 @@
 
   <!-- ===== AR VIEW ===== -->
   <div id="viewAR" class="view">
-    <!-- ARはJSで生成（切替時にカメラを止めやすくするため） -->
     <div id="arMount"></div>
   </div>
 
 <script>
-/* ----------------------------------------
-   ▼ マーカーごとのデータ（タイトル・文章・画像）
----------------------------------------- */
-const popupData = {
-  marker1: {
-    title: "昔の高輪ゲートウェイ駅周辺",
-    text: "高輪は 武蔵野台地の“東端の尾根” に位置し、当時は海が現在よりも西側に迫っていました。",
-    img: "./sample1.jpg",
-    lat: 35.63563,
-    lon: 139.74148,
-    arIcon: "./marker1.png"
-  },
-  marker2: {
-    title: "高縄原合戦",
-    // ★ <br> を使うなら innerHTML で出す（openPopupで対応）
-    text: "大永四年（一五二四）正月十三日。小田原を本拠地に、相模から武蔵に進出して関東制覇をもくろむ北条氏綱と、関東管領の栄光を死守しようとする江戸城主上杉（扇谷）朝興の軍勢による戦がありました。<br>合戦は籠城を避けて野戦に打って出た上杉勢が大敗を喫し、朝興は河越城へ逃避しました。",
-    img: "./sample2.jpg",
-    lat: 35.6363613,
-    lon: 139.73978,
-    arIcon: "./marker2.png"
-  }
+/* =========================================================
+   ① ここが「施設データの追加場所」です（ここだけ増やせばOK）
+   ========================================================= */
+
+// 藩ごとの家紋アイコン（ファイルは自分で用意）
+const hanKamonIcon = {
+  "伊勢神戸藩": "./isekobe_han.png",
+  "播摩明石藩": "./harimaakashi_han.png",
+  "該当なし": "./default.png"
 };
 
-/* ----------------------------------------
-   ▼ ポップアップ
----------------------------------------- */
+// 施設一覧（いまは2件だけ）
+const poiList = [
+  {
+    id: "p1",
+    name: "本多伊予守忠廉",
+    summary: `本多伊予守忠廉は、江戸時代中期の大名で、本多氏の一族にあたる。<br>
+本多氏は徳川家康の重臣として知られ、江戸幕府成立以降、多くの藩主を輩出した譜代大名の名門である。`,
+    han: `伊勢神戸藩`,
+    hanText: `伊勢神戸藩：江戸時代に伊勢国河曲郡神戸城（現在の三重県鈴鹿市神戸）を本拠とした藩。本多伊予守忠廉は同藩の藩主として幕府に仕えた。`,
+    role: `伊予守`,
+    roleText: `「伊予守（いよのかみ）」は、朝廷から授けられた官位（かんい）。本来は伊予国（現在の愛媛県）を管轄する国司の長官を指す官職名であったが、江戸時代には名誉称号として用いられた。`,
+    lat: 35.83838545056143,
+    lon: 139.55628086794118
+  },
+  {
+    id: "p2",
+    name: "松平兵部大輔",
+    summary: `松平兵部大輔は、江戸時代の大名で、徳川将軍家と同族関係にある松平氏の一族にあたる。<br>
+松平氏は徳川氏の祖とされる家系であり、江戸幕府成立以降、多くの大名や幕府要職者を輩出した名門である。`,
+    han: `播摩明石藩`,
+    hanText: `播磨明石藩：播磨国明石城（現在の兵庫県明石市）を本拠とした藩である。西国に位置する要地を押さえる藩として重視され、譜代大名や親藩が藩主を務めた。`,
+    role: `兵部大輔`,
+    roleText: `「兵部大輔（ひょうぶだいゆう）」は、朝廷の兵部省に属する官位（官職名）。江戸時代には実務を伴う役職ではなく、大名や上級武士に与えられる名誉的な官位として用いられた。`,
+    lat: 35.8385138616813,
+    lon: 139.55567066401724
+  },
+];
+
+// poiList → popupData（内部で扱いやすい形）
+let popupData = Object.fromEntries(poiList.map(p => [p.id, p]));
+
+// 家紋アイコンを決める（poi.icon があればそれを優先）
+function getKamonIcon(poi){
+  if (poi.icon) return poi.icon;
+  return hanKamonIcon[poi.han] || "./kamon/default.png";
+}
+
+/* =========================================================
+   ② 共通：ポップアップ
+   ========================================================= */
 const popup = document.getElementById("popup");
 const popupTitle = document.getElementById("popupTitle");
 const popupText = document.getElementById("popupText");
 const popupImg = document.getElementById("popupImg");
 const logs = document.getElementById("logs");
 
-function openPopup(data) {
-  popupTitle.textContent = data.title || "";
+function escHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
+}
 
-  // ★ br等を効かせたいので innerHTML
-  popupText.innerHTML = data.text || "";
+function openPopup(poi) {
+  popupTitle.textContent = poi.name || "";
 
-  if (data.img) {
-    popupImg.src = data.img;
-    popupImg.style.display = "block";
-  } else {
-    popupImg.style.display = "none";
-  }
+  // ポップアップ内のマーカー（家紋画像）は表示しない
+  popupImg.style.display = "none";
+
+  popupText.innerHTML = `
+    <div style="font-size:12px; opacity:.75; margin-bottom:8px;">
+      藩：<b>${escHtml(poi.han)}</b> ／ 役職：<b>${escHtml(poi.role)}</b>
+    </div>
+
+    <div style="border-top:1px solid #eee; padding-top:10px;">
+      <div style="font-weight:700; margin-bottom:4px;">概要</div>
+      <div style="font-size:14px; line-height:1.65;">${poi.summary || ""}</div>
+    </div>
+
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer; font-weight:700;">藩の説明</summary>
+      <div style="margin-top:6px; font-size:14px; line-height:1.65;">${poi.hanText || ""}</div>
+    </details>
+
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer; font-weight:700;">役職の説明</summary>
+      <div style="margin-top:6px; font-size:14px; line-height:1.65;">${poi.roleText || ""}</div>
+    </details>
+  `;
+
   popup.style.display = "block";
 }
-function closePopup() {
-  popup.style.display = "none";
-}
 
-/* ----------------------------------------
-   ▼ 画面切替（Map / AR）
-   - ARはDOM生成/破棄してカメラを止める
----------------------------------------- */
+/* =========================================================
+   ③ 画面切替（Map / AR）
+   ========================================================= */
 const viewMap = document.getElementById("viewMap");
 const viewAR  = document.getElementById("viewAR");
 const btnMap  = document.getElementById("btnMap");
 const btnAR   = document.getElementById("btnAR");
 const arMount = document.getElementById("arMount");
-
 let arSceneEl = null;
 
 function showView(which){
@@ -200,58 +237,60 @@ function showView(which){
     viewAR.classList.remove("active");
     btnMap.classList.add("active");
     btnAR.classList.remove("active");
-
-    // AR停止（カメラ停止を狙ってsceneを破棄）
     destroyAR();
-    logs.textContent = logs.textContent.replace("[AR]","[MAP]");
+    if (!logs.textContent.startsWith("[MAP]")) logs.textContent = "[MAP] 表示中...";
   }else{
     viewAR.classList.add("active");
     viewMap.classList.remove("active");
     btnAR.classList.add("active");
     btnMap.classList.remove("active");
-
-    // AR起動
     buildAR();
-    logs.textContent = logs.textContent.replace("[MAP]","[AR]");
+    if (!logs.textContent.startsWith("[AR]")) logs.textContent = "[AR] 表示中...";
   }
 }
 
-/* ----------------------------------------
-   ▼ MAP (Leaflet + OSM)
----------------------------------------- */
+/* =========================================================
+   ④ MAP (Leaflet + OSM)
+   ========================================================= */
 let map, userMarker;
-function initMap(){
-  map = L.map("map", {
-    zoomControl: true,
-    attributionControl: true
-  }).setView([35.6360, 139.7405], 16);
 
-  // OSM 標準タイル（attribution必須）
-  // ※ 大規模アクセスなら自前ホスト/商用タイル推奨（OSM標準タイルはフェアユースの範囲で） :contentReference[oaicite:1]{index=1}
+function initMap(){
+  map = L.map("map").setView([35.6346, 139.7366], 17);
+
+  // OSM タイル（attribution 必須）
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
-  // POIマーカー（2D）
-  Object.entries(popupData).forEach(([id, d]) => {
-    const m = L.marker([d.lat, d.lon]).addTo(map);
-    m.on("click", () => openPopup(d));
-    m.bindTooltip(d.title || id, {direction:"top"});
+  // 施設マーカー（家紋アイコン）
+  Object.entries(popupData).forEach(([id, poi]) => {
+    const icon = L.icon({
+      iconUrl: getKamonIcon(poi),
+      iconSize: [42, 42],
+      iconAnchor: [21, 21],
+      popupAnchor: [0, -18]
+    });
+
+    const m = L.marker([poi.lat, poi.lon], { icon }).addTo(map);
+    m.on("click", () => openPopup(poi));
+    m.bindTooltip(poi.name, { direction:"top" });
   });
 
-  // ユーザー位置（許可された場合のみ）
+  // 現在地（許可されたら追跡）
   if(navigator.geolocation){
     navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         const ll = [latitude, longitude];
+
         if(!userMarker){
           userMarker = L.circleMarker(ll, { radius: 8 }).addTo(map);
           map.setView(ll, 17);
         }else{
           userMarker.setLatLng(ll);
         }
+
         logs.textContent = `[MAP] lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)} acc:${Math.round(accuracy)}m`;
       },
       (err) => {
@@ -259,36 +298,39 @@ function initMap(){
       },
       { enableHighAccuracy:true, maximumAge:1000, timeout:8000 }
     );
-  }else{
+  } else {
     logs.textContent = "[MAP] Geolocation未対応ブラウザです";
   }
 }
 
-/* ----------------------------------------
-   ▼ AR (A-Frame / AR.js)
----------------------------------------- */
+/* =========================================================
+   ⑤ AR (A-Frame / AR.js)
+   ========================================================= */
 function buildAR(){
   if(arSceneEl) return;
 
-  // sceneを文字列で生成（=切替で破棄しやすい）
+  // a-scene を生成して差し込む（切替で破棄しやすい）
   const sceneHtml = `
     <a-scene
       embedded
       vr-mode-ui="enabled: false"
       arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-      ${Object.entries(popupData).map(([id, d]) => `
-        <a-image
-          id="${id}"
-          class="clickable"
-          src="${d.arIcon || './marker.png'}"
-          width="20"
-          height="20"
-          look-at="[gps-camera]"
-          gps-entity-place="latitude: ${d.lat}; longitude: ${d.lon};"
-          visible="true">
-        </a-image>
-      `).join("")}
+      ${Object.entries(popupData).map(([id, poi]) => {
+        const icon = getKamonIcon(poi);
+        return `
+          <a-image
+            id="${id}"
+            class="clickable"
+            src="${icon}"
+            width="18"
+            height="18"
+            look-at="[gps-camera]"
+            gps-entity-place="latitude: ${poi.lat}; longitude: ${poi.lon};"
+            visible="true">
+          </a-image>
+        `;
+      }).join("")}
 
       <a-camera gps-camera rotation-reader>
         <a-cursor
@@ -304,25 +346,20 @@ function buildAR(){
   arMount.innerHTML = sceneHtml;
   arSceneEl = arMount.querySelector("a-scene");
 
-  // ARクリック → ポップアップ
+  // ARで家紋をタップ→ポップアップ
   arSceneEl.querySelectorAll(".clickable").forEach(el => {
     el.addEventListener("click", () => {
-      const data = popupData[el.id];
-      if (data) openPopup(data);
+      const poi = popupData[el.id];
+      if(poi) openPopup(poi);
     });
   });
 
-  // GPS更新：ログ＋距離に応じたスケール/透明度
   window.addEventListener("gps-camera-update-position", onArGpsUpdate);
 }
 
 function destroyAR(){
   if(!arSceneEl) return;
-
-  // イベント解除
   window.removeEventListener("gps-camera-update-position", onArGpsUpdate);
-
-  // DOMを消す（カメラ停止を狙う）
   arMount.innerHTML = "";
   arSceneEl = null;
 }
@@ -331,49 +368,48 @@ function onArGpsUpdate(e){
   const { latitude, longitude } = e.detail.position;
   logs.textContent = `[AR] lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)}`;
 
-  // 距離計算
+  // 距離によるスケール調整
   const toRad = d => d * Math.PI / 180;
   const R = 6371000;
 
-  Object.entries(popupData).forEach(([id, d]) => {
+  Object.entries(popupData).forEach(([id, poi]) => {
     const markerEl = document.getElementById(id);
     if(!markerEl) return;
 
-    const dLat = toRad(d.lat - latitude);
-    const dLon = toRad(d.lon - longitude);
+    const dLat = toRad(poi.lat - latitude);
+    const dLon = toRad(poi.lon - longitude);
 
     const a =
-      Math.sin(dLat / 2)**2 +
+      Math.sin(dLat/2)**2 +
       Math.cos(toRad(latitude)) *
-      Math.cos(toRad(d.lat)) *
-      Math.sin(dLon / 2)**2;
+      Math.cos(toRad(poi.lat)) *
+      Math.sin(dLon/2)**2;
 
     const dist = 2 * R * Math.asin(Math.sqrt(a));
 
-    // 距離に応じたスケール
-    const minScale = 2.0;
-    const maxScale = 0.8;
-    const maxDist = 80;
+    // ▼ 近いほど少し大きく
+    const minScale = 1.8; // 近距離
+    const maxScale = 0.8; // 遠距離
+    const maxDist  = 120; // この距離以上は「遠い扱い」
 
-    let dd = Math.min(dist, maxDist);
-    let t = dd / maxDist;
-    let scale = minScale * (1 - t) + maxScale * t;
+    const d = Math.min(dist, maxDist);
+    const t = d / maxDist;
+    const scale = minScale * (1 - t) + maxScale * t;
+
     markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
-    // 透明度（近いほど濃い）
-    const minOpacity = 0.5;
+    // ▼ 透明度（近いほど濃い）
+    const minOpacity = 0.55;
     const maxOpacity = 1.0;
-    let opacity = minOpacity * (1 - t) + maxOpacity * t;
+    const opacity = minOpacity * (1 - t) + maxOpacity * t;
     markerEl.setAttribute("material", `opacity: ${opacity}`);
   });
 }
 
-/* ----------------------------------------
-   ▼ 起動
----------------------------------------- */
+/* =========================================================
+   起動
+   ========================================================= */
 initMap();
-// 初期ログ表記を統一
-logs.textContent = "[MAP] 準備中...";
 </script>
 
 </body>
