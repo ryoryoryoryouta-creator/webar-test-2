@@ -446,10 +446,9 @@ function onArGpsUpdate(e){
 
     markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
-    // ▼ デバッグ：p1だけ距離表示（必要なら）
-    if (id === "p1") {
-      logs.textContent += ` / p1:${Math.round(dist)}m`;
-    }
+    // ▼ 透明度は固定で見える化
+    markerEl.setAttribute("material", `opacity: 1.0`);
+
   });
 }
 
