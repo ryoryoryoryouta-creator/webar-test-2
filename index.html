@@ -436,9 +436,9 @@ function onArGpsUpdate(e){
     const dist = 2 * R * Math.asin(Math.sqrt(a));
 
     // ▼ 近いほど大きく（現実的な範囲）
-    const minScale = 8.0;
-    const maxScale = 3.5;
-    const maxDist  = 300;
+    const minScale = 1.8;
+    const maxScale = 0.8;
+    const maxDist  = 120;
 
     const d = Math.min(dist, maxDist);
     const t = d / maxDist;
@@ -447,12 +447,10 @@ function onArGpsUpdate(e){
     markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
     // ▼ 透明度は固定で見える化
-    markerEl.setAttribute("material", `opacity: 1.0`);
-
-    // ▼ デバッグ：p1だけ距離表示（必要なら）
-    if (id === "p1") {
-      logs.textContent += ` / p1:${Math.round(dist)}m`;
-    }
+    const minOpacity = 0.55
+    const maxOpacity = 1.0;
+    const opacity = minOpacity * (1 - t) + maxOpacity * t;
+    markerEl.setAttribute("material", opacity: ${opacity});
   });
 }
 
