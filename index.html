@@ -95,6 +95,26 @@
     .leaflet-control-attribution{
       margin-bottom:42px !important;
     }
+
+    /* ===== AR領域をフルスクリーン固定（重要） ===== */
+    #viewAR, #arMount {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #arMount a-scene {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #arMount canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
   </style>
 </head>
 
