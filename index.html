@@ -446,11 +446,10 @@ function onArGpsUpdate(e){
 
     markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
-    // ▼ 透明度は固定で見える化
-    const minOpacity = 0.55
-    const maxOpacity = 1.0;
-    const opacity = minOpacity * (1 - t) + maxOpacity * t;
-    markerEl.setAttribute("material", opacity: ${opacity});
+    // ▼ デバッグ：p1だけ距離表示（必要なら）
+    if (id === "p1") {
+      logs.textContent += ` / p1:${Math.round(dist)}m`;
+    }
   });
 }
 
