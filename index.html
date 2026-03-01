@@ -474,8 +474,8 @@ function initMap(){
   Object.entries(popupData).forEach(([id, poi]) => {
     const icon = L.icon({
       iconUrl: getKamonIcon(poi),
-      iconSize: [62, 62],
-      iconAnchor: [31, 31],
+      iconSize: [100, 100],
+      iconAnchor: [50, 0],
       popupAnchor: [0, -18]
     });
 
