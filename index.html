@@ -221,6 +221,10 @@ function openPopup(poi) {
   popup.style.display = "block";
 }
 
+function closePopup() {
+  popup.style.display = "none";
+}
+
 /* =========================================================
    ③ 画面切替（Map / AR）
    ========================================================= */
@@ -388,9 +392,9 @@ function onArGpsUpdate(e){
     const dist = 2 * R * Math.asin(Math.sqrt(a));
 
     // ▼ 近いほど少し大きく
-    const minScale = 1.8; // 近距離
-    const maxScale = 0.8; // 遠距離
-    const maxDist  = 120; // この距離以上は「遠い扱い」
+    const minScale = 10.0; // 近距離
+    const maxScale = 6.0; // 遠距離
+    const maxDist  = 2000; // この距離以上は「遠い扱い」
 
     const d = Math.min(dist, maxDist);
     const t = d / maxDist;
@@ -399,7 +403,7 @@ function onArGpsUpdate(e){
     markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
     // ▼ 透明度（近いほど濃い）
-    const minOpacity = 0.55;
+    const minOpacity = 1.0;
     const maxOpacity = 1.0;
     const opacity = minOpacity * (1 - t) + maxOpacity * t;
     markerEl.setAttribute("material", `opacity: ${opacity}`);
