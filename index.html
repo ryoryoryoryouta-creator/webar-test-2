@@ -128,17 +128,17 @@
 
 <script>
 /* =========================================================
-   ① ここが「施設データの追加場所」です（ここだけ増やせばOK）
+   ① データ
    ========================================================= */
 
-// 藩ごとの家紋アイコン（ファイルは自分で用意）
+// 藩ごとの家紋アイコン（この3つの画像ファイルを配置してください）
 const hanKamonIcon = {
   "伊勢神戸藩": "./isekobe_han.png",
   "播摩明石藩": "./harimaakashi_han.png",
   "該当なし": "./default.png"
 };
 
-// 施設一覧（いまは2件だけ）
+// 施設一覧（2件）
 const poiList = [
   {
     id: "p1",
@@ -166,17 +166,15 @@ const poiList = [
   },
 ];
 
-// poiList → popupData（内部で扱いやすい形）
 let popupData = Object.fromEntries(poiList.map(p => [p.id, p]));
 
-// 家紋アイコンを決める（poi.icon があればそれを優先）
 function getKamonIcon(poi){
   if (poi.icon) return poi.icon;
-  return hanKamonIcon[poi.han] || "./kamon/default.png";
+  return hanKamonIcon[poi.han] || "./default.png";
 }
 
 /* =========================================================
-   ② 共通：ポップアップ
+   ② ポップアップ
    ========================================================= */
 const popup = document.getElementById("popup");
 const popupTitle = document.getElementById("popupTitle");
@@ -193,9 +191,7 @@ function escHtml(s){
 
 function openPopup(poi) {
   popupTitle.textContent = poi.name || "";
-
-  // ポップアップ内のマーカー（家紋画像）は表示しない
-  popupImg.style.display = "none";
+  popupImg.style.display = "none"; // ポップアップ内に家紋は表示しない
 
   popupText.innerHTML = `
     <div style="font-size:12px; opacity:.75; margin-bottom:8px;">
@@ -259,15 +255,13 @@ function showView(which){
 let map, userMarker;
 
 function initMap(){
-  map = L.map("map").setView([35.6346, 139.7366], 17);
+  map = L.map("map").setView([35.83840, 139.55582], 17);
 
-  // OSM タイル（attribution 必須）
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
-  // 施設マーカー（家紋アイコン）
   Object.entries(popupData).forEach(([id, poi]) => {
     const icon = L.icon({
       iconUrl: getKamonIcon(poi),
@@ -281,7 +275,6 @@ function initMap(){
     m.bindTooltip(poi.name, { direction:"top" });
   });
 
-  // 現在地（許可されたら追跡）
   if(navigator.geolocation){
     navigator.geolocation.watchPosition(
       (pos) => {
@@ -308,33 +301,44 @@ function initMap(){
 }
 
 /* =========================================================
-   ⑤ AR (A-Frame / AR.js)
+   ⑤ AR (A-Frame / AR.js)  ★a-assets事前ロード版
    ========================================================= */
 function buildAR(){
   if(arSceneEl) return;
 
-  // a-scene を生成して差し込む（切替で破棄しやすい）
+  // ▼ a-assets に img を入れて事前ロード
+  const assetsHtml = Object.entries(popupData).map(([id, poi]) => {
+    const icon = getKamonIcon(poi);
+    // 重要：#asset_{id} として参照する
+    return `<img id="asset_${id}" src="${icon}" crossorigin="anonymous">`;
+  }).join("");
+
+  const markersHtml = Object.entries(popupData).map(([id, poi]) => {
+    return `
+      <a-image
+        id="${id}"
+        class="clickable"
+        src="#asset_${id}"
+        width="22"
+        height="22"
+        look-at="[gps-camera]"
+        gps-entity-place="latitude: ${poi.lat}; longitude: ${poi.lon};"
+        visible="true">
+      </a-image>
+    `;
+  }).join("");
+
   const sceneHtml = `
     <a-scene
       embedded
       vr-mode-ui="enabled: false"
       arjs="sourceType: webcam; debugUIEnabled: false; gpsMinDistance: 0; gpsTimeInterval: 1000;"
     >
-      ${Object.entries(popupData).map(([id, poi]) => {
-        const icon = getKamonIcon(poi);
-        return `
-          <a-image
-            id="${id}"
-            class="clickable"
-            src="${icon}"
-            width="18"
-            height="18"
-            look-at="[gps-camera]"
-            gps-entity-place="latitude: ${poi.lat}; longitude: ${poi.lon};"
-            visible="true">
-          </a-image>
-        `;
-      }).join("")}
+      <a-assets>
+        ${assetsHtml}
+      </a-assets>
+
+      ${markersHtml}
 
       <a-camera gps-camera rotation-reader>
         <a-cursor
@@ -350,7 +354,21 @@ function buildAR(){
   arMount.innerHTML = sceneHtml;
   arSceneEl = arMount.querySelector("a-scene");
 
-  // ARで家紋をタップ→ポップアップ
+  logs.textContent = "[AR] scene mounted. GPS waiting...";
+
+  // ▼ 画像ロード状況をログ（読み込み失敗の切り分け）
+  Object.keys(popupData).forEach(id => {
+    const img = document.getElementById(`asset_${id}`);
+    if(!img) return;
+    img.addEventListener("load", () => {
+      logs.textContent = `[AR] asset loaded: asset_${id}`;
+    });
+    img.addEventListener("error", () => {
+      logs.textContent = `[AR] asset ERROR: asset_${id} (path maybe wrong)`;
+    });
+  });
+
+  // ARでタップ→ポップアップ
   arSceneEl.querySelectorAll(".clickable").forEach(el => {
     el.addEventListener("click", () => {
       const poi = popupData[el.id];
@@ -358,17 +376,8 @@ function buildAR(){
     });
   });
 
+  // ▼ GPS更新イベント（ここが来てるのは確認済み）
   window.addEventListener("gps-camera-update-position", onArGpsUpdate);
-
-  // ARシーンが立ち上がったか確認
-  logs.textContent = "[AR] scene mounted. GPS waiting...";
-
-  // gps-camera のイベント（エラーも含む）を拾う
-  window.addEventListener("gps-camera-update-position", (e) => {
-    const { latitude, longitude, accuracy } = e.detail.position;
-    logs.textContent = `[AR] gps ok lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)} acc:${Math.round(accuracy)}m`;
-  });
-
   window.addEventListener("gps-camera-error", (e) => {
     logs.textContent = `[AR] gps error: ${JSON.stringify(e.detail || e)}`;
   });
@@ -382,10 +391,12 @@ function destroyAR(){
 }
 
 function onArGpsUpdate(e){
-  const { latitude, longitude } = e.detail.position;
-  logs.textContent = `[AR] lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)}`;
+  const { latitude, longitude, accuracy } = e.detail.position;
 
-  // 距離によるスケール調整
+  // ▼ まずは「GPSは来てる」を見える化
+  logs.textContent = `[AR] gps ok lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)} acc:${Math.round(accuracy)}m`;
+
+  // 距離によるスケール調整（極端にしない）
   const toRad = d => d * Math.PI / 180;
   const R = 6371000;
 
@@ -404,10 +415,10 @@ function onArGpsUpdate(e){
 
     const dist = 2 * R * Math.asin(Math.sqrt(a));
 
-    // ▼ 近いほど少し大きく
-    const minScale = 100.0; // 近距離
-    const maxScale = 60.0; // 遠距離
-    const maxDist  = 2000; // この距離以上は「遠い扱い」
+    // ▼ 近いほど大きく（現実的な範囲）
+    const minScale = 8.0;
+    const maxScale = 3.5;
+    const maxDist  = 300;
 
     const d = Math.min(dist, maxDist);
     const t = d / maxDist;
@@ -415,11 +426,13 @@ function onArGpsUpdate(e){
 
     markerEl.setAttribute("scale", `${scale} ${scale} ${scale}`);
 
-    // ▼ 透明度（近いほど濃い）
-    const minOpacity = 1.0;
-    const maxOpacity = 1.0;
-    const opacity = minOpacity * (1 - t) + maxOpacity * t;
-    markerEl.setAttribute("material", `opacity: ${opacity}`);
+    // ▼ 透明度は固定で見える化
+    markerEl.setAttribute("material", `opacity: 1.0`);
+
+    // ▼ デバッグ：p1だけ距離表示（必要なら）
+    if (id === "p1") {
+      logs.textContent += ` / p1:${Math.round(dist)}m`;
+    }
   });
 }
 
