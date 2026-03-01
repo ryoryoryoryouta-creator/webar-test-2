@@ -359,6 +359,19 @@ function buildAR(){
   });
 
   window.addEventListener("gps-camera-update-position", onArGpsUpdate);
+
+  // ARシーンが立ち上がったか確認
+  logs.textContent = "[AR] scene mounted. GPS waiting...";
+
+  // gps-camera のイベント（エラーも含む）を拾う
+  window.addEventListener("gps-camera-update-position", (e) => {
+    const { latitude, longitude, accuracy } = e.detail.position;
+    logs.textContent = `[AR] gps ok lat:${latitude.toFixed(6)} lon:${longitude.toFixed(6)} acc:${Math.round(accuracy)}m`;
+  });
+
+  window.addEventListener("gps-camera-error", (e) => {
+    logs.textContent = `[AR] gps error: ${JSON.stringify(e.detail || e)}`;
+  });
 }
 
 function destroyAR(){
