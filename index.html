@@ -436,9 +436,9 @@ function onArGpsUpdate(e){
     const dist = 2 * R * Math.asin(Math.sqrt(a));
 
     // ▼ 近いほど大きく（現実的な範囲）
-    const minScale = 1.8;
-    const maxScale = 0.8;
-    const maxDist  = 120;
+    const minScale = 1.0;
+    const maxScale = 0.3;
+    const maxDist  = 50;
 
     const d = Math.min(dist, maxDist);
     const t = d / maxDist;
