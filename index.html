@@ -149,8 +149,8 @@ const poiList = [
     hanText: `伊勢神戸藩：江戸時代に伊勢国河曲郡神戸城（現在の三重県鈴鹿市神戸）を本拠とした藩。本多伊予守忠廉は同藩の藩主として幕府に仕えた。`,
     role: `伊予守`,
     roleText: `「伊予守（いよのかみ）」は、朝廷から授けられた官位（かんい）。本来は伊予国（現在の愛媛県）を管轄する国司の長官を指す官職名であったが、江戸時代には名誉称号として用いられた。`,
-    lat: 35.83838545056143,
-    lon: 139.55628086794118
+    lat: 35.838298109390976,
+    lon: 139.55597043350855
   },
   {
     id: "p2",
@@ -392,8 +392,8 @@ function onArGpsUpdate(e){
     const dist = 2 * R * Math.asin(Math.sqrt(a));
 
     // ▼ 近いほど少し大きく
-    const minScale = 10.0; // 近距離
-    const maxScale = 6.0; // 遠距離
+    const minScale = 100.0; // 近距離
+    const maxScale = 60.0; // 遠距離
     const maxDist  = 2000; // この距離以上は「遠い扱い」
 
     const d = Math.min(dist, maxDist);
